@@ -1,0 +1,42 @@
+name: Deploy GSS Application
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Login to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker Image
+        run: docker build -t muhammadyusuf2766/gssiot-application.26.05.2026:latest -f DockerFile .
+
+      - name: Publish Image to docker hub
+        run: docker push muhammadyusuf2766/gssiot-application.26.05.2026:latest
+
+      - name: Remove unused Docker images
+        run: docker system prune -af
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Pull image from docker hub
+        run: docker pull muhammadyusuf2766/gssiot-application.26.05.2026:latest
+
+      - name: Delete old container
+        run: docker rm -f gssiot-app-container || true
+
+      - name: Run Docker Container
+        run: |
+          docker run -d -p 3002:3002 --name gssiot-app-container \
+            -e EXPO_PUBLIC_SERVER_BASE_URL='${{ secrets.EXPO_PUBLIC_SERVER_BASE_URL }}' \
+            
+            muhammadyusuf2766/gssiot-application.26.05.2026:latest
