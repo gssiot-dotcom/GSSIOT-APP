@@ -1,18 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Pressable,
   ScrollView,
   Text,
   View,
-  Pressable,
 } from "react-native";
 
 import { getBuildingNodesApi } from "../../../api/nodes";
 import HeaderLogo from "../../../components/common/HeaderLogo";
 import { useRealtimeRoom } from "../../../hooks/useRealtime";
+import { getAssetUrl } from "../../../utils/getAssetUrl";
 
 const getNumber = (...values: any[]) => {
   for (const value of values) {
@@ -89,11 +90,13 @@ export default function VerticalNodeDetailScreen() {
     siteName,
     x: paramX,
     y: paramY,
+    buildingPlanImage,
   } = useLocalSearchParams();
 
   const [node, setNode] = useState<any>(null);
   const [gateway, setGateway] = useState<any>(null);
   const [alarmLevel, setAlarmLevel] = useState<any>(null);
+  const [planImageUrls, setPlanImageUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchNode = async () => {
@@ -119,6 +122,16 @@ export default function VerticalNodeDetailScreen() {
       const buildingAlarmLevel =
         result.data?.buildingAlarmLevel || result.buildingAlarmLevel || null;
 
+      const imageKeys =
+        typeof buildingPlanImage === "string"
+          ? JSON.parse(buildingPlanImage)
+          : [];
+
+      const imageUrls = Array.isArray(imageKeys)
+        ? imageKeys.map(getAssetUrl).filter(Boolean)
+        : [];
+
+      setPlanImageUrls(imageUrls);
       setAlarmLevel(buildingAlarmLevel);
 
       const foundNode = nodes.find(
@@ -155,6 +168,7 @@ export default function VerticalNodeDetailScreen() {
         angleX: initialX ?? foundNode.angleX,
         angleY: initialY ?? foundNode.angleY,
       });
+
       setGateway(foundGateway || null);
     } catch (error: any) {
       console.log(
@@ -162,6 +176,7 @@ export default function VerticalNodeDetailScreen() {
         error?.response?.data || error?.message
       );
       setNode(null);
+      setPlanImageUrls([]);
     } finally {
       setLoading(false);
     }
@@ -190,13 +205,11 @@ export default function VerticalNodeDetailScreen() {
           payload.nodeNum ??
           payload.doorNum;
 
-        const payloadNodeId =
-          payload.nodeId ??
-          payload._id;
+        const payloadNodeId = payload.nodeId ?? payload._id;
 
         const isSameNode =
           String(prev._id) === String(payloadNodeId) ||
-          String(prev.number) === String(payloadNumber)
+          String(prev.number) === String(payloadNumber);
 
         if (!isSameNode) return prev;
 
@@ -218,7 +231,9 @@ export default function VerticalNodeDetailScreen() {
           status: payload.status ?? prev.status,
 
           installedLocation:
-            payload.installedLocation ?? payload.position ?? prev.installedLocation,
+            payload.installedLocation ??
+            payload.position ??
+            prev.installedLocation,
 
           position: payload.position ?? prev.position,
           floor: payload.floor ?? prev.floor,
@@ -326,7 +341,6 @@ export default function VerticalNodeDetailScreen() {
           <Ionicons name="stats-chart" size={16} color="white" />
           <Text className="text-white font-bold ml-2">그래프 보기</Text>
         </Pressable>
-
       </View>
 
       <ScrollView
@@ -360,11 +374,28 @@ export default function VerticalNodeDetailScreen() {
             </View>
 
             <View className="mb-3 bg-[#F6F7FA] rounded-2xl p-3">
-              <Image
-                source={require("../../../assets/images/verticalnode_img.png")}
-                className="w-full h-44"
-                resizeMode="contain"
-              />
+              {planImageUrls.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {planImageUrls.map((url, index) => (
+                    <Image
+                      key={`${url}-${index}`}
+                      source={{ uri: url }}
+                      className="w-[320px] h-44 rounded-xl mr-3"
+                      resizeMode="contain"
+                    />
+                  ))}
+                </ScrollView>
+              ) : (
+                <Image
+                  source={require("../../../assets/images/verticalnode_img.png")}
+                  className="w-full h-44"
+                  resizeMode="contain"
+                />
+              )}
             </View>
 
             <View className="bg-[#F6F7FA] rounded-2xl px-4 py-5 mb-3">

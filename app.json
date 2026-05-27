@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "gss-app",
+    "name": "GSS",
     "slug": "gss-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,11 +9,16 @@
     "ios": {
       "supportsTablet": true
     },
+
+    "icon": "./assets/images/blue_logo.png",
+       
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE"
+        "foregroundImage": "./assets/images/blue_logo.png",
+        "backgroundColor": "#ffffff"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.aiwd0113.gssapp"
     },
     "web": {
       "output": "static"
@@ -37,6 +42,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0cdddbce-f795-44ed-af92-199e913f2ad1"
+      }
     }
   }
 }

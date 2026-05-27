@@ -12,7 +12,6 @@ import {
 import { getBuildingsApi, getBuildingStatsApi } from "../../api/buildings";
 import HeaderLogo from "../../components/common/HeaderLogo";
 
-
 export default function BuildingsScreen() {
   const { companyName, companyId } = useLocalSearchParams();
 
@@ -29,8 +28,7 @@ export default function BuildingsScreen() {
 
       setUser(loginUser);
 
-      const targetCompanyId =
-        typeof companyId === "string" ? companyId : "";
+      const targetCompanyId = typeof companyId === "string" ? companyId : "";
 
       const buildingsResult = await getBuildingsApi();
       const statsResult = await getBuildingStatsApi(targetCompanyId);
@@ -43,9 +41,7 @@ export default function BuildingsScreen() {
         : [];
 
       const statsBuildings =
-        statsResult.data?.buildingsList ||
-        statsResult.buildingsList ||
-        [];
+        statsResult.data?.buildingsList || statsResult.buildingsList || [];
 
       const statsMap = new Map();
 
@@ -57,22 +53,22 @@ export default function BuildingsScreen() {
 
       const mergedBuildings = Array.isArray(allBuildings)
         ? allBuildings.map((building: any) => {
-          const buildingId = String(building._id || building.id);
+            const buildingId = String(building._id || building.id);
 
-          return {
-            ...building,
-            statistics: statsMap.get(buildingId) || {},
-          };
-        })
+            return {
+              ...building,
+              statistics: statsMap.get(buildingId) || {},
+            };
+          })
         : [];
 
       const filteredBuildings = targetCompanyId
         ? mergedBuildings.filter((building: any) => {
-          const buildingCompanyId =
-            building.companyId?._id || building.companyId;
+            const buildingCompanyId =
+              building.companyId?._id || building.companyId;
 
-          return String(buildingCompanyId) === String(targetCompanyId);
-        })
+            return String(buildingCompanyId) === String(targetCompanyId);
+          })
         : mergedBuildings;
 
       setBuildings(Array.isArray(filteredBuildings) ? filteredBuildings : []);
@@ -120,14 +116,10 @@ export default function BuildingsScreen() {
               const buildingId = building._id || building.id;
 
               const buildingName =
-                building.title ||
-                building.buildingName ||
-                "이름 없음";
+                building.title || building.buildingName || "이름 없음";
 
               const buildingAddr =
-                building.address ||
-                building.buildingAddress ||
-                "-";
+                building.address || building.buildingAddress || "-";
 
               const stats = building.statistics || building.stats || building;
 
@@ -147,9 +139,7 @@ export default function BuildingsScreen() {
                 0;
 
               const angleCount =
-                stats.angleNodeCount ??
-                stats.angleNodesCount ??
-                0;
+                stats.angleNodeCount ?? stats.angleNodesCount ?? 0;
 
               const verticalCount =
                 stats.gangformNodeCount ??
@@ -157,6 +147,10 @@ export default function BuildingsScreen() {
                 stats.verticalNodeCount ??
                 stats.verticalNodesCount ??
                 0;
+
+              const buildingPlanImage = JSON.stringify(
+                building.buildingPlanImage || []
+              );
 
               return (
                 <TouchableOpacity
@@ -169,8 +163,11 @@ export default function BuildingsScreen() {
                       params: {
                         buildingId: String(buildingId),
                         siteName: String(buildingName),
-                        companyId: String(building.companyId?._id || building.companyId),
-                      }
+                        companyId: String(
+                          building.companyId?._id || building.companyId
+                        ),
+                        buildingPlanImage,
+                      },
                     } as any)
                   }
                 >
@@ -244,9 +241,7 @@ export default function BuildingsScreen() {
 
           {!buildings.length && (
             <View className="items-center mt-20">
-              <Text className="text-gray-500">
-                등록된 건물이 없습니다.
-              </Text>
+              <Text className="text-gray-500">등록된 건물이 없습니다.</Text>
             </View>
           )}
         </ScrollView>

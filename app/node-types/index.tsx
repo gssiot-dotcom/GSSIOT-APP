@@ -25,7 +25,8 @@ const nodeTypes = [
 ] as const;
 
 export default function NodetypesScreen() {
-  const { siteName, buildingId, companyId } = useLocalSearchParams();
+  const { siteName, buildingId, companyId, buildingPlanImage } =
+    useLocalSearchParams();
 
   const [user, setUser] = useState<any>(null);
 
@@ -41,6 +42,11 @@ export default function NodetypesScreen() {
     typeof companyId === "string" ? companyId : ""
   );
 
+  const [currentBuildingPlanImage, setCurrentBuildingPlanImage] =
+    useState<string>(
+      typeof buildingPlanImage === "string" ? buildingPlanImage : "[]"
+    );
+
   const fetchUserBuilding = async () => {
     try {
       const savedUser = await AsyncStorage.getItem("user");
@@ -51,27 +57,33 @@ export default function NodetypesScreen() {
 
       setUser(parsedUser);
 
-      if (siteName && buildingId) return;
+      if (siteName && buildingId) {
+        if (typeof buildingPlanImage === "string") {
+          setCurrentBuildingPlanImage(buildingPlanImage);
+        }
+
+        return;
+      }
 
       const result = await getBuildingsApi();
 
       console.log("node-types buildings result:", result);
 
-      const buildings = Array.isArray(result.data)
-        ? result.data
-        : [];
+      const buildings = Array.isArray(result.data) ? result.data : [];
 
       const myBuilding = Array.isArray(buildings) ? buildings[0] : null;
 
       if (myBuilding) {
-        setCurrentSiteName(
-          myBuilding.title || myBuilding.buildingName || ""
-        );
+        setCurrentSiteName(myBuilding.title || myBuilding.buildingName || "");
 
         setCurrentBuildingId(myBuilding._id || myBuilding.id || "");
 
         setCurrentCompanyId(
           String(myBuilding.companyId?._id || myBuilding.companyId || "")
+        );
+
+        setCurrentBuildingPlanImage(
+          JSON.stringify(myBuilding.buildingPlanImage || [])
         );
       }
     } catch (error) {
@@ -108,6 +120,7 @@ export default function NodetypesScreen() {
                   siteName: currentSiteName,
                   buildingId: currentBuildingId,
                   companyId: currentCompanyId,
+                  buildingPlanImage: currentBuildingPlanImage,
                 },
               } as any)
             }

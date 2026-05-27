@@ -167,7 +167,12 @@ const getActiveDirection = (x: number, y: number) => {
 };
 
 export default function VerticalNodeScreen() {
-  const { siteName, buildingId, companyId } = useLocalSearchParams();
+  const {
+    siteName,
+    buildingId,
+    companyId,
+    buildingPlanImage,
+  } = useLocalSearchParams();
 
   const [verticalNodes, setVerticalNodes] = useState<any[]>([]);
   const [alarmLevel, setAlarmLevel] = useState<any>(null);
@@ -549,6 +554,10 @@ export default function VerticalNodeScreen() {
                         buildingId,
                         companyId,
                         siteName,
+                        buildingPlanImage:
+                          typeof buildingPlanImage === "string"
+                            ? buildingPlanImage
+                            : "[]",
                       },
                     } as any);
                   }}
