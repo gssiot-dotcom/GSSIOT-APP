@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Pressable,
   ScrollView,
@@ -12,17 +13,17 @@ import {
 
 import { getBuildingNodesApi } from "../../../api/nodes";
 import HeaderLogo from "../../../components/common/HeaderLogo";
+import ImageZoomModal from "../../../components/common/ImageZoomModal";
 import { useRealtimeRoom } from "../../../hooks/useRealtime";
 import { getAssetUrl } from "../../../utils/getAssetUrl";
+
+const PLAN_IMAGE_WIDTH = Dimensions.get("window").width - 84;
 
 const getNumber = (...values: any[]) => {
   for (const value of values) {
     if (value !== undefined && value !== null && value !== "") {
       const num = Number(value);
-
-      if (!Number.isNaN(num)) {
-        return num;
-      }
+      if (!Number.isNaN(num)) return num;
     }
   }
 
@@ -99,6 +100,9 @@ export default function VerticalNodeDetailScreen() {
   const [planImageUrls, setPlanImageUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [zoomVisible, setZoomVisible] = useState(false);
+  const [zoomIndex, setZoomIndex] = useState(0);
+
   const fetchNode = async () => {
     try {
       setLoading(true);
@@ -107,6 +111,17 @@ export default function VerticalNodeDetailScreen() {
         setNode(null);
         return;
       }
+
+      const imageKeys =
+        typeof buildingPlanImage === "string"
+          ? JSON.parse(buildingPlanImage)
+          : [];
+
+      const imageUrls = Array.isArray(imageKeys)
+        ? imageKeys.map(getAssetUrl).filter(Boolean)
+        : [];
+
+      setPlanImageUrls(imageUrls);
 
       const result = await getBuildingNodesApi({
         companyId: typeof companyId === "string" ? companyId : undefined,
@@ -122,16 +137,6 @@ export default function VerticalNodeDetailScreen() {
       const buildingAlarmLevel =
         result.data?.buildingAlarmLevel || result.buildingAlarmLevel || null;
 
-      const imageKeys =
-        typeof buildingPlanImage === "string"
-          ? JSON.parse(buildingPlanImage)
-          : [];
-
-      const imageUrls = Array.isArray(imageKeys)
-        ? imageKeys.map(getAssetUrl).filter(Boolean)
-        : [];
-
-      setPlanImageUrls(imageUrls);
       setAlarmLevel(buildingAlarmLevel);
 
       const foundNode = nodes.find(
@@ -154,14 +159,10 @@ export default function VerticalNodeDetailScreen() {
       );
 
       const initialX =
-        typeof paramX === "string" && paramX !== ""
-          ? Number(paramX)
-          : undefined;
+        typeof paramX === "string" && paramX !== "" ? Number(paramX) : undefined;
 
       const initialY =
-        typeof paramY === "string" && paramY !== ""
-          ? Number(paramY)
-          : undefined;
+        typeof paramY === "string" && paramY !== "" ? Number(paramY) : undefined;
 
       setNode({
         ...foundNode,
@@ -194,9 +195,7 @@ export default function VerticalNodeDetailScreen() {
       console.log("vertical detail realtime:", payload);
 
       setNode((prev: any) => {
-        if (!prev) {
-          return prev;
-        }
+        if (!prev) return prev;
 
         const payloadNumber =
           payload.nodeNumber ??
@@ -249,7 +248,6 @@ export default function VerticalNodeDetailScreen() {
     return (
       <View className="flex-1 bg-[#EDEDED]">
         <HeaderLogo />
-
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1E2F5C" />
         </View>
@@ -261,11 +259,8 @@ export default function VerticalNodeDetailScreen() {
     return (
       <View className="flex-1 bg-[#EDEDED]">
         <HeaderLogo />
-
         <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">
-            노드 정보를 찾을 수 없습니다.
-          </Text>
+          <Text className="text-gray-500">노드 정보를 찾을 수 없습니다.</Text>
         </View>
       </View>
     );
@@ -286,9 +281,7 @@ export default function VerticalNodeDetailScreen() {
   );
 
   const isOffline = String(node.status).toLowerCase() === "offline";
-
   const maxAlarm = Math.max(Math.abs(xValue), Math.abs(yValue));
-
   const statusInfo = getStatusInfo(maxAlarm, alarmLevel, isOffline);
 
   const gatewaySerial =
@@ -373,20 +366,34 @@ export default function VerticalNodeDetailScreen() {
               </View>
             </View>
 
-            <View className="mb-3 bg-[#F6F7FA] rounded-2xl p-3">
+            <View className="mb-3 bg-[#F6F7FA] rounded-2xl p-3 overflow-hidden">
               {planImageUrls.length > 0 ? (
                 <ScrollView
                   horizontal
                   pagingEnabled
+                  snapToInterval={PLAN_IMAGE_WIDTH}
+                  decelerationRate="fast"
                   showsHorizontalScrollIndicator={false}
                 >
                   {planImageUrls.map((url, index) => (
-                    <Image
+                    <Pressable
                       key={`${url}-${index}`}
-                      source={{ uri: url }}
-                      className="w-[320px] h-44 rounded-xl mr-3"
-                      resizeMode="contain"
-                    />
+                      onPress={() => {
+                        setZoomIndex(index);
+                        setZoomVisible(true);
+                      }}
+                      style={{ width: PLAN_IMAGE_WIDTH }}
+                      className="h-44 items-center justify-center"
+                    >
+                      <Image
+                        source={{ uri: url }}
+                        style={{
+                          width: PLAN_IMAGE_WIDTH,
+                          height: 176,
+                        }}
+                        resizeMode="contain"
+                      />
+                    </Pressable>
                   ))}
                 </ScrollView>
               ) : (
@@ -442,8 +449,9 @@ export default function VerticalNodeDetailScreen() {
 
                 <View className="flex-row items-center">
                   <View
-                    className={`w-2.5 h-2.5 rounded-full mr-2 ${isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
-                      }`}
+                    className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                      isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
+                    }`}
                   />
 
                   <Text className="text-[#1E263D] text-base font-black">
@@ -469,6 +477,13 @@ export default function VerticalNodeDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <ImageZoomModal
+        visible={zoomVisible}
+        imageUrls={planImageUrls}
+        index={zoomIndex}
+        onClose={() => setZoomVisible(false)}
+      />
     </View>
   );
 }
