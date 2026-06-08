@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableWithoutFeedback,
@@ -86,6 +87,7 @@ export default function AngleNodeScreen() {
   const [angleNodes, setAngleNodes] = useState<any[]>([]);
   const [alarmLevel, setAlarmLevel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [selectedZone, setSelectedZone] = useState("전체구역");
   const [selectedNode, setSelectedNode] = useState("전체노드");
@@ -98,9 +100,11 @@ export default function AngleNodeScreen() {
     setNodeOpen(false);
   };
 
-  const fetchAngleNodes = async () => {
+  const fetchAngleNodes = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       if (!buildingId || typeof buildingId !== "string") {
         setAngleNodes([]);
@@ -151,7 +155,18 @@ export default function AngleNodeScreen() {
 
       setAngleNodes([]);
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchAngleNodes(true);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -175,9 +190,7 @@ export default function AngleNodeScreen() {
             payload.nodeNum ??
             payload.doorNum;
 
-          const payloadNodeId =
-            payload.nodeId ??
-            payload._id;
+          const payloadNodeId = payload.nodeId ?? payload._id;
 
           const isSameNode =
             String(node._id) === String(payloadNodeId) ||
@@ -252,35 +265,19 @@ export default function AngleNodeScreen() {
       if (!aOffline && bOffline) return -1;
 
       const aX = Number(
-        a.angleX ??
-        a.calibratedX ??
-        a.calibrated_x ??
-        a.angle_x ??
-        0
+        a.angleX ?? a.calibratedX ?? a.calibrated_x ?? a.angle_x ?? 0
       );
 
       const aY = Number(
-        a.angleY ??
-        a.calibratedY ??
-        a.calibrated_y ??
-        a.angle_y ??
-        0
+        a.angleY ?? a.calibratedY ?? a.calibrated_y ?? a.angle_y ?? 0
       );
 
       const bX = Number(
-        b.angleX ??
-        b.calibratedX ??
-        b.calibrated_x ??
-        b.angle_x ??
-        0
+        b.angleX ?? b.calibratedX ?? b.calibrated_x ?? b.angle_x ?? 0
       );
 
       const bY = Number(
-        b.angleY ??
-        b.calibratedY ??
-        b.calibrated_y ??
-        b.angle_y ??
-        0
+        b.angleY ?? b.calibratedY ?? b.calibrated_y ?? b.angle_y ?? 0
       );
 
       return (
@@ -390,19 +387,13 @@ export default function AngleNodeScreen() {
             ].map((item) => (
               <View key={item.label} className="items-center">
                 <View className="flex-row items-center mb-1">
-                  <View
-                    className={`w-3 h-3 rounded-full ${item.color} mr-1`}
-                  />
+                  <View className={`w-3 h-3 rounded-full ${item.color} mr-1`} />
 
-                  <Text className="text-xs text-[#1E263D]">
-                    {item.label}
-                  </Text>
+                  <Text className="text-xs text-[#1E263D]">{item.label}</Text>
                 </View>
 
                 <View className="bg-white border border-gray-300 rounded-md px-3 py-1">
-                  <Text className="text-xs text-[#1E263D]">
-                    {item.value}
-                  </Text>
+                  <Text className="text-xs text-[#1E263D]">{item.value}</Text>
                 </View>
               </View>
             ))}
@@ -421,8 +412,9 @@ export default function AngleNodeScreen() {
                     setSelectedNode("전체노드");
                     setZoneOpen(false);
                   }}
-                  className={`px-3 py-3 ${selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
-                    }`}
+                  className={`px-3 py-3 ${
+                    selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
+                  }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {zone}
@@ -444,8 +436,9 @@ export default function AngleNodeScreen() {
                     setSelectedNode(node);
                     setNodeOpen(false);
                   }}
-                  className={`px-3 py-3 ${selectedNode === node ? "bg-[#EEF1FF]" : "bg-white"
-                    }`}
+                  className={`px-3 py-3 ${
+                    selectedNode === node ? "bg-[#EEF1FF]" : "bg-white"
+                  }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {node === "전체노드" ? node : `노드 ${node}`}
@@ -469,6 +462,14 @@ export default function AngleNodeScreen() {
             contentContainerStyle={{ paddingBottom: 120 }}
             columnWrapperStyle={{ justifyContent: "space-between" }}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#1E2F5C"]}
+                tintColor="#1E2F5C"
+              />
+            }
             renderItem={({ item }: any) => {
               if ("empty" in item) {
                 return <View className="w-[31.5%] mb-4" />;
@@ -476,30 +477,24 @@ export default function AngleNodeScreen() {
 
               const axisX = Number(
                 item.angleX ??
-                item.calibratedX ??
-                item.angle_x ??
-                item.calibrated_x ??
-                0
+                  item.calibratedX ??
+                  item.angle_x ??
+                  item.calibrated_x ??
+                  0
               );
 
               const axisY = Number(
                 item.angleY ??
-                item.calibratedY ??
-                item.angle_y ??
-                item.calibrated_y ??
-                0
+                  item.calibratedY ??
+                  item.angle_y ??
+                  item.calibrated_y ??
+                  0
               );
 
-              const isOffline =
-                String(item.status).toLowerCase() === "offline";
+              const isOffline = String(item.status).toLowerCase() === "offline";
 
               const maxAlarm = Math.max(Math.abs(axisX), Math.abs(axisY));
               const status = getStatusInfo(maxAlarm, alarmLevel, isOffline);
-
-              const zone =
-                item.gateway?.zoneName ||
-                item.gateway?.zone_name ||
-                "구역 없음";
 
               const gatewaySerial =
                 item.gateway?.serialNumber ||
@@ -552,9 +547,7 @@ export default function AngleNodeScreen() {
                           </Text>
                         </View>
 
-                        <View
-                          className={`${status.chip} px-2 py-1 rounded-full`}
-                        >
+                        <View className={`${status.chip} px-2 py-1 rounded-full`}>
                           <Text
                             className={`${status.text} text-[10px] font-black`}
                           >

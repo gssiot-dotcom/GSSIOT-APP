@@ -6,6 +6,8 @@ import {
   Modal,
   PanResponder,
   Pressable,
+  RefreshControl,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -258,9 +260,9 @@ export default function VerticalGraphScreen() {
   const { nodeId, nodeNumber, buildingId } = useLocalSearchParams();
 
   const currentNodeNumber =
-    typeof nodeNumber === "string"
+    typeof nodeNumber === "string" && !Number.isNaN(Number(nodeNumber))
       ? Number(nodeNumber)
-      : typeof nodeId === "string"
+      : typeof nodeId === "string" && !Number.isNaN(Number(nodeId))
         ? Number(nodeId)
         : 0;
 
@@ -275,6 +277,7 @@ export default function VerticalGraphScreen() {
     null
   );
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const range = useMemo(
     () => getGraphRange(viewMode, hours, selectedDate),
@@ -329,9 +332,12 @@ export default function VerticalGraphScreen() {
     [visibleGraphData, range, yRange]
   );
 
-  const fetchGraphData = async () => {
+  const fetchGraphData = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
+
       setSelectedPoint(null);
 
       if (!currentNodeNumber) {
@@ -351,11 +357,11 @@ export default function VerticalGraphScreen() {
       console.log("vertical graph result:", result);
 
       const histories =
-        result.data?.data ||
         result.data ||
         result.histories ||
         result.items ||
-        result ||
+        result.graphData ||
+        result.list ||
         [];
 
       const historyList = Array.isArray(histories) ? histories : [];
@@ -383,7 +389,18 @@ export default function VerticalGraphScreen() {
 
       setGraphData([]);
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchGraphData(true);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -499,264 +516,284 @@ export default function VerticalGraphScreen() {
         </Text>
       </View>
 
-      <Pressable
-        className="flex-1 pt-5 pb-6"
-        onPress={() => setSelectedPoint(null)}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingTop: 20,
+          paddingBottom: 40,
+        }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#1E2F5C"]}
+            tintColor="#1E2F5C"
+          />
+        }
       >
-        <View className="bg-[#F6F7FA] rounded-[28px] p-5 border border-gray-200">
-          <View className="flex-row items-center justify-between mb-6">
-            <Text className="text-[#1E263D] text-xl font-black">
-              폼 변형 실시간 데이터
-              <Text className="text-[#5B8FD9]">
-                {" "}
-                Node-{currentNodeNumber || "-"}
+        <Pressable onPress={() => setSelectedPoint(null)}>
+          <View className="bg-[#F6F7FA] rounded-[28px] p-5 border border-gray-200">
+            <View className="flex-row items-center justify-between mb-6">
+              <Text className="text-[#1E263D] text-xl font-black">
+                폼 변형 실시간 데이터
+                <Text className="text-[#5B8FD9]">
+                  {" "}
+                  Node-{currentNodeNumber || "-"}
+                </Text>
               </Text>
-            </Text>
 
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="w-10 h-10 rounded-full bg-white items-center justify-center border border-gray-200"
-            >
-              <Text className="text-2xl text-gray-500">×</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row items-center mb-5 flex-wrap">
-            <Text className="text-base font-black text-[#1E263D] mr-3">
-              조회:
-            </Text>
-
-            {[1, 6, 12, 24].map((item) => (
               <TouchableOpacity
-                key={item}
+                onPress={() => router.back()}
+                className="w-10 h-10 rounded-full bg-white items-center justify-center border border-gray-200"
+              >
+                <Text className="text-2xl text-gray-500">×</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-row items-center mb-5 flex-wrap">
+              <Text className="text-base font-black text-[#1E263D] mr-3">
+                조회:
+              </Text>
+
+              {[1, 6, 12, 24].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  onPress={() => {
+                    setViewMode("hour");
+                    setHours(item as 1 | 6 | 12 | 24);
+                    setPickerOpen(false);
+                  }}
+                  className={`border rounded-xl px-3 py-2 mr-2 mb-2 ${
+                    viewMode === "hour" && hours === item
+                      ? "bg-[#29306B] border-[#29306B]"
+                      : "bg-white border-gray-300"
+                  }`}
+                >
+                  <Text
+                    className={`text-xs font-bold ${
+                      viewMode === "hour" && hours === item
+                        ? "text-white"
+                        : "text-[#1E263D]"
+                    }`}
+                  >
+                    {item} 시간
+                  </Text>
+                </TouchableOpacity>
+              ))}
+
+              <TouchableOpacity
                 onPress={() => {
-                  setViewMode("hour");
-                  setHours(item as 1 | 6 | 12 | 24);
-                  setPickerOpen(false);
+                  setViewMode("day");
+                  setPickerOpen(true);
+                  setPickerViewDate(selectedDate);
                 }}
                 className={`border rounded-xl px-3 py-2 mr-2 mb-2 ${
-                  viewMode === "hour" && hours === item
+                  viewMode === "day"
                     ? "bg-[#29306B] border-[#29306B]"
                     : "bg-white border-gray-300"
                 }`}
               >
                 <Text
                   className={`text-xs font-bold ${
-                    viewMode === "hour" && hours === item
-                      ? "text-white"
-                      : "text-[#1E263D]"
+                    viewMode === "day" ? "text-white" : "text-[#1E263D]"
                   }`}
                 >
-                  {item} 시간
+                  일
                 </Text>
               </TouchableOpacity>
-            ))}
-
-            <TouchableOpacity
-              onPress={() => {
-                setViewMode("day");
-                setPickerOpen(true);
-                setPickerViewDate(selectedDate);
-              }}
-              className={`border rounded-xl px-3 py-2 mr-2 mb-2 ${
-                viewMode === "day"
-                  ? "bg-[#29306B] border-[#29306B]"
-                  : "bg-white border-gray-300"
-              }`}
-            >
-              <Text
-                className={`text-xs font-bold ${
-                  viewMode === "day" ? "text-white" : "text-[#1E263D]"
-                }`}
-              >
-                일
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row mb-6 items-center">
-            <View className="flex-row">
-              <View className="px-5 py-2 rounded-xl mr-3 border bg-white border-[#B91C1C]">
-                <Text className="font-black text-base text-[#B91C1C]">X</Text>
-              </View>
-
-              <View className="px-5 py-2 rounded-xl border bg-white border-[#2563EB]">
-                <Text className="font-black text-base text-[#2563EB]">Y</Text>
-              </View>
             </View>
 
-            {viewMode === "day" && (
-              <TouchableOpacity
-                onPress={() => {
-                  setPickerOpen(true);
-                  setPickerViewDate(selectedDate);
-                }}
-                className="bg-white border border-gray-300 rounded-xl px-4 py-2 ml-4"
-              >
-                <Text className="text-sm font-bold text-[#1E263D]">
-                  {formatDate(selectedDate)}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {loading ? (
-            <View className="h-[360px] items-center justify-center">
-              <ActivityIndicator size="large" color="#1E2F5C" />
-            </View>
-          ) : !visibleGraphData.length ? (
-            <View className="h-[360px] items-center justify-center">
-              <Text className="text-gray-400">그래프 데이터가 없습니다.</Text>
-            </View>
-          ) : (
-            <View
-              className="relative"
-              style={{
-                width: CHART_WIDTH,
-                height: CHART_HEIGHT,
-              }}
-              {...panResponder.panHandlers}
-            >
-              {selectedPoint && (
-                <View
-                  pointerEvents="none"
-                  className="absolute bg-white rounded-xl px-4 py-3 border border-gray-300 z-50"
-                  style={{
-                    top: Math.max(selectedPoint.py - 95, 0),
-                    left: Math.min(selectedPoint.px + 10, CHART_WIDTH - 160),
-                    shadowColor: "#000",
-                    shadowOpacity: 0.12,
-                    shadowRadius: 8,
-                    elevation: 5,
-                  }}
-                >
-                  <Text className="text-base font-bold text-[#1E263D] mb-3">
-                    {formatTooltipTime(selectedPoint.time)}
-                  </Text>
-
-                  <Text className="text-base text-[#B91C1C] mb-2">
-                    X : {Number(selectedPoint.x).toFixed(1)}
-                  </Text>
-
-                  <Text className="text-base text-[#2563EB]">
-                    Y : {Number(selectedPoint.y).toFixed(1)}
+            <View className="flex-row mb-6 items-center">
+              <View className="flex-row">
+                <View className="px-5 py-2 rounded-xl mr-3 border bg-white border-[#B91C1C]">
+                  <Text className="font-black text-base text-[#B91C1C]">
+                    X
                   </Text>
                 </View>
+
+                <View className="px-5 py-2 rounded-xl border bg-white border-[#2563EB]">
+                  <Text className="font-black text-base text-[#2563EB]">
+                    Y
+                  </Text>
+                </View>
+              </View>
+
+              {viewMode === "day" && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setPickerOpen(true);
+                    setPickerViewDate(selectedDate);
+                  }}
+                  className="bg-white border border-gray-300 rounded-xl px-4 py-2 ml-4"
+                >
+                  <Text className="text-sm font-bold text-[#1E263D]">
+                    {formatDate(selectedDate)}
+                  </Text>
+                </TouchableOpacity>
               )}
+            </View>
 
+            {loading ? (
+              <View className="h-[360px] items-center justify-center">
+                <ActivityIndicator size="large" color="#1E2F5C" />
+              </View>
+            ) : !visibleGraphData.length ? (
+              <View className="h-[360px] items-center justify-center">
+                <Text className="text-gray-400">그래프 데이터가 없습니다.</Text>
+              </View>
+            ) : (
               <View
-                pointerEvents="none"
+                className="relative"
                 style={{
-                  position: "absolute",
-                  left: PLOT_LEFT,
-                  top: PLOT_TOP,
-                  height: PLOT_HEIGHT,
-                  width: 1,
-                  backgroundColor: "#6B7280",
+                  width: CHART_WIDTH,
+                  height: CHART_HEIGHT,
                 }}
-              />
-
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  left: PLOT_LEFT,
-                  top: PLOT_BOTTOM,
-                  width: PLOT_WIDTH,
-                  height: 1,
-                  backgroundColor: "#6B7280",
-                }}
-              />
-
-              <Text
-                className="absolute text-gray-500 text-sm"
-                style={{ left: yRange.max >= 10 ? -4 : 0, top: PLOT_TOP - 5 }}
+                {...panResponder.panHandlers}
               >
-                {yRange.max.toFixed(1)}
-              </Text>
-
-              <Text
-                className="absolute text-gray-500 text-sm"
-                style={{ left: 0, top: getY(0) - 9 }}
-              >
-                0.0
-              </Text>
-
-              <Text
-                className="absolute text-gray-500 text-sm"
-                style={{
-                  left: yRange.min <= -10 ? -12 : -8,
-                  top: PLOT_BOTTOM - 10,
-                }}
-              >
-                {yRange.min.toFixed(1)}
-              </Text>
-
-              {timeTicks.map((tick, index) => {
-                const x = getX(tick);
-
-                return (
-                  <Text
-                    key={`${tick}-${index}`}
-                    className="absolute text-gray-500 text-xs"
+                {selectedPoint && (
+                  <View
+                    pointerEvents="none"
+                    className="absolute bg-white rounded-xl px-4 py-3 border border-gray-300 z-50"
                     style={{
-                      left: x - 18,
-                      top: PLOT_BOTTOM + 18,
+                      top: Math.max(selectedPoint.py - 95, 0),
+                      left: Math.min(selectedPoint.px + 10, CHART_WIDTH - 160),
+                      shadowColor: "#000",
+                      shadowOpacity: 0.12,
+                      shadowRadius: 8,
+                      elevation: 5,
                     }}
                   >
-                    {formatXAxisLabel(tick)}
-                  </Text>
-                );
-              })}
+                    <Text className="text-base font-bold text-[#1E263D] mb-3">
+                      {formatTooltipTime(selectedPoint.time)}
+                    </Text>
 
-              <Svg
-                width={CHART_WIDTH}
-                height={CHART_HEIGHT}
-                style={{ position: "absolute", left: 0, top: 0 }}
-              >
-                <Polyline
-                  points={xLinePoints}
-                  fill="none"
-                  stroke="#B91C1C"
-                  strokeWidth="2.5"
-                />
+                    <Text className="text-base text-[#B91C1C] mb-2">
+                      X : {Number(selectedPoint.x).toFixed(1)}
+                    </Text>
 
-                <Polyline
-                  points={yLinePoints}
-                  fill="none"
-                  stroke="#2563EB"
-                  strokeWidth="2.5"
-                />
-
-                {selectedPoint && (
-                  <>
-                    <Circle
-                      cx={selectedPoint.px}
-                      cy={getY(selectedPoint.x)}
-                      r="4"
-                      fill="#B91C1C"
-                    />
-                    <Circle
-                      cx={selectedPoint.px}
-                      cy={getY(selectedPoint.y)}
-                      r="4"
-                      fill="#2563EB"
-                    />
-                  </>
+                    <Text className="text-base text-[#2563EB]">
+                      Y : {Number(selectedPoint.y).toFixed(1)}
+                    </Text>
+                  </View>
                 )}
-              </Svg>
+
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    left: PLOT_LEFT,
+                    top: PLOT_TOP,
+                    height: PLOT_HEIGHT,
+                    width: 1,
+                    backgroundColor: "#6B7280",
+                  }}
+                />
+
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    left: PLOT_LEFT,
+                    top: PLOT_BOTTOM,
+                    width: PLOT_WIDTH,
+                    height: 1,
+                    backgroundColor: "#6B7280",
+                  }}
+                />
+
+                <Text
+                  className="absolute text-gray-500 text-sm"
+                  style={{ left: yRange.max >= 10 ? -4 : 0, top: PLOT_TOP - 5 }}
+                >
+                  {yRange.max.toFixed(1)}
+                </Text>
+
+                <Text
+                  className="absolute text-gray-500 text-sm"
+                  style={{ left: 0, top: getY(0) - 9 }}
+                >
+                  0.0
+                </Text>
+
+                <Text
+                  className="absolute text-gray-500 text-sm"
+                  style={{
+                    left: yRange.min <= -10 ? -12 : -8,
+                    top: PLOT_BOTTOM - 10,
+                  }}
+                >
+                  {yRange.min.toFixed(1)}
+                </Text>
+
+                {timeTicks.map((tick, index) => {
+                  const x = getX(tick);
+
+                  return (
+                    <Text
+                      key={`${tick}-${index}`}
+                      className="absolute text-gray-500 text-xs"
+                      style={{
+                        left: x - 18,
+                        top: PLOT_BOTTOM + 18,
+                      }}
+                    >
+                      {formatXAxisLabel(tick)}
+                    </Text>
+                  );
+                })}
+
+                <Svg
+                  width={CHART_WIDTH}
+                  height={CHART_HEIGHT}
+                  style={{ position: "absolute", left: 0, top: 0 }}
+                >
+                  <Polyline
+                    points={xLinePoints}
+                    fill="none"
+                    stroke="#B91C1C"
+                    strokeWidth="2.5"
+                  />
+
+                  <Polyline
+                    points={yLinePoints}
+                    fill="none"
+                    stroke="#2563EB"
+                    strokeWidth="2.5"
+                  />
+
+                  {selectedPoint && (
+                    <>
+                      <Circle
+                        cx={selectedPoint.px}
+                        cy={getY(selectedPoint.x)}
+                        r="4"
+                        fill="#B91C1C"
+                      />
+                      <Circle
+                        cx={selectedPoint.px}
+                        cy={getY(selectedPoint.y)}
+                        r="4"
+                        fill="#2563EB"
+                      />
+                    </>
+                  )}
+                </Svg>
+              </View>
+            )}
+
+            <View className="flex-row justify-between mt-3 px-3">
+              <Text className="text-sm font-black text-[#1E263D]">
+                Y축 : 변형
+              </Text>
+
+              <Text className="text-sm font-black text-[#1E263D]">
+                X축 : 시간
+              </Text>
             </View>
-          )}
-
-          <View className="flex-row justify-between mt-3 px-3">
-            <Text className="text-sm font-black text-[#1E263D]">
-              Y축 : 변형
-            </Text>
-
-            <Text className="text-sm font-black text-[#1E263D]">X축 : 시간</Text>
           </View>
-        </View>
-      </Pressable>
+        </Pressable>
+      </ScrollView>
 
       <Modal
         visible={pickerOpen}

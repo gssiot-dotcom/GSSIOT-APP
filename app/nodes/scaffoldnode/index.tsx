@@ -6,6 +6,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  RefreshControl,
   Text,
   View,
 } from "react-native";
@@ -21,11 +22,14 @@ export default function ScaffoldNodeScreen() {
 
   const [nodes, setNodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
 
-  const fetchNodes = async () => {
+  const fetchNodes = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       if (typeof buildingId !== "string") {
         setNodes([]);
@@ -47,7 +51,18 @@ export default function ScaffoldNodeScreen() {
       console.log(error?.response?.data || error);
       alert("해치발판 노드를 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchNodes(true);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -219,20 +234,25 @@ export default function ScaffoldNodeScreen() {
           contentContainerStyle={{ paddingBottom: 140 }}
           columnWrapperStyle={{ justifyContent: "space-between" }}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#1E2F5C"]}
+              tintColor="#1E2F5C"
+            />
+          }
           renderItem={({ item }: any) => {
             if ("empty" in item) {
               return <View className="w-[31.5%] mb-4" />;
             }
 
             const isOpen = item.doorState === 1 || item.doorState === true;
-
             const isOffline = String(item.status).toLowerCase() === "offline";
 
-            const statusLabel = isOffline
-              ? "통신불가"
-              : isOpen
-              ? "열림"
-              : "닫힘";
+            const statusLabel = isOffline ? "통신불가" : isOpen ? "열림" : "닫힘";
 
             const statusColor = isOffline
               ? "bg-[#6B7280]"

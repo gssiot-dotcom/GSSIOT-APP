@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -16,6 +17,7 @@ export default function CompaniesScreen() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchUser = async () => {
     const savedUser = await AsyncStorage.getItem("user");
@@ -25,9 +27,11 @@ export default function CompaniesScreen() {
     }
   };
 
-  const fetchCompanies = async () => {
+  const fetchCompanies = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       const result = await getCompaniesApi();
 
@@ -43,7 +47,22 @@ export default function CompaniesScreen() {
       console.log(error?.response?.data || error);
       alert("회사 목록을 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+
+      await Promise.all([
+        fetchUser(),
+        fetchCompanies(true),
+      ]);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -78,6 +97,14 @@ export default function CompaniesScreen() {
             paddingBottom: 24,
           }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#1E2F5C"]}
+              tintColor="#1E2F5C"
+            />
+          }
         >
           <View className="flex-row flex-wrap justify-between">
             {companies.map((item) => {
@@ -134,7 +161,7 @@ export default function CompaniesScreen() {
                   <View className="flex-row items-center justify-between mb-5">
                     <Text className="text-xs text-gray-600">주소</Text>
 
-                    <View className="bg-blue-600 rounded-full px-3 py-1">
+                    <View className="bg-blue-600 rounded-full px-3 py-1 max-w-[70%]">
                       <Text
                         className="text-[11px] font-bold text-white"
                         numberOfLines={1}

@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableWithoutFeedback,
@@ -50,6 +51,7 @@ const getNodeY = (node: any) =>
     node?.calibrated_angle_y,
     node?.y
   );
+
 const getGateway = (node: any) => node?.gateway || null;
 
 const getZoneName = (node: any) =>
@@ -167,16 +169,13 @@ const getActiveDirection = (x: number, y: number) => {
 };
 
 export default function VerticalNodeScreen() {
-  const {
-    siteName,
-    buildingId,
-    companyId,
-    buildingPlanImage,
-  } = useLocalSearchParams();
+  const { siteName, buildingId, companyId, buildingPlanImage } =
+    useLocalSearchParams();
 
   const [verticalNodes, setVerticalNodes] = useState<any[]>([]);
   const [alarmLevel, setAlarmLevel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [selectedZone, setSelectedZone] = useState("전체구역");
   const [selectedNode, setSelectedNode] = useState("전체노드");
@@ -188,9 +187,11 @@ export default function VerticalNodeScreen() {
     setNodeOpen(false);
   };
 
-  const fetchVerticalNodes = async () => {
+  const fetchVerticalNodes = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       if (!buildingId || typeof buildingId !== "string") {
         setVerticalNodes([]);
@@ -237,7 +238,18 @@ export default function VerticalNodeScreen() {
       console.log("vertical error message:", error?.message);
       alert("수직노드를 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchVerticalNodes(true);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -254,8 +266,6 @@ export default function VerticalNodeScreen() {
 
       setVerticalNodes((prev) =>
         prev.map((node) => {
-          const nodeNumber = getNodeNumber(node);
-
           const payloadNumber =
             payload.nodeNumber ??
             payload.number ??
@@ -263,15 +273,14 @@ export default function VerticalNodeScreen() {
             payload.nodeNum ??
             payload.doorNum;
 
-          const payloadNodeId =
-            payload.nodeId ??
-            payload._id;
+          const payloadNodeId = payload.nodeId ?? payload._id;
 
           const isSameNode =
             String(node._id) === String(payloadNodeId) ||
             String(node.number) === String(payloadNumber);
 
           if (!isSameNode) return node;
+
           return {
             ...node,
 
@@ -471,8 +480,9 @@ export default function VerticalNodeScreen() {
                     setSelectedNode("전체노드");
                     setZoneOpen(false);
                   }}
-                  className={`px-3 py-3 ${selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
-                    }`}
+                  className={`px-3 py-3 ${
+                    selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
+                  }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {zone}
@@ -494,8 +504,9 @@ export default function VerticalNodeScreen() {
                     setSelectedNode(node);
                     setNodeOpen(false);
                   }}
-                  className={`px-3 py-3 ${selectedNode === node ? "bg-[#EEF1FF]" : "bg-white"
-                    }`}
+                  className={`px-3 py-3 ${
+                    selectedNode === node ? "bg-[#EEF1FF]" : "bg-white"
+                  }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {node}
@@ -519,6 +530,14 @@ export default function VerticalNodeScreen() {
             contentContainerStyle={{ paddingBottom: 120 }}
             columnWrapperStyle={{ justifyContent: "space-between" }}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#1E2F5C"]}
+                tintColor="#1E2F5C"
+              />
+            }
             renderItem={({ item }: any) => {
               if ("empty" in item) {
                 return <View className="w-[31.5%] mb-4" />;
@@ -580,7 +599,9 @@ export default function VerticalNodeScreen() {
                         </View>
 
                         <View className={`${style.chip} px-2 py-1 rounded-full`}>
-                          <Text className={`${style.text} text-[10px] font-black`}>
+                          <Text
+                            className={`${style.text} text-[10px] font-black`}
+                          >
                             {style.label}
                           </Text>
                         </View>
@@ -599,18 +620,19 @@ export default function VerticalNodeScreen() {
                             return (
                               <View
                                 key={dot.key}
-                                className={`${dot.className} w-3 h-3 rounded-full border border-gray-500 ${isActive ? "" : "bg-white"
-                                  }`}
+                                className={`${dot.className} w-3 h-3 rounded-full border border-gray-500 ${
+                                  isActive ? "" : "bg-white"
+                                }`}
                                 style={
                                   isActive
                                     ? {
-                                      backgroundColor: style.glow,
-                                      shadowColor: style.glow,
-                                      shadowOffset: { width: 0, height: 0 },
-                                      shadowOpacity: 0.7,
-                                      shadowRadius: 7,
-                                      elevation: 8,
-                                    }
+                                        backgroundColor: style.glow,
+                                        shadowColor: style.glow,
+                                        shadowOffset: { width: 0, height: 0 },
+                                        shadowOpacity: 0.7,
+                                        shadowRadius: 7,
+                                        elevation: 8,
+                                      }
                                     : undefined
                                 }
                               />
@@ -618,18 +640,19 @@ export default function VerticalNodeScreen() {
                           })}
 
                           <View
-                            className={`w-3 h-3 rounded-full border border-gray-500 ${activeDirection === "center" ? "" : "bg-white"
-                              }`}
+                            className={`w-3 h-3 rounded-full border border-gray-500 ${
+                              activeDirection === "center" ? "" : "bg-white"
+                            }`}
                             style={
                               activeDirection === "center"
                                 ? {
-                                  backgroundColor: style.glow,
-                                  shadowColor: style.glow,
-                                  shadowOffset: { width: 0, height: 0 },
-                                  shadowOpacity: 0.7,
-                                  shadowRadius: 7,
-                                  elevation: 8,
-                                }
+                                    backgroundColor: style.glow,
+                                    shadowColor: style.glow,
+                                    shadowOffset: { width: 0, height: 0 },
+                                    shadowOpacity: 0.7,
+                                    shadowRadius: 7,
+                                    elevation: 8,
+                                  }
                                 : undefined
                             }
                           />

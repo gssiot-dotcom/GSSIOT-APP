@@ -9,16 +9,15 @@
     "ios": {
       "supportsTablet": true
     },
-
     "icon": "./assets/images/blue_logo.png",
-       
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/blue_logo.png",
         "backgroundColor": "#ffffff"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aiwd0113.gssapp"
+      "package": "com.aiwd0113.gssapp",
+      "versionCode": 1
     },
     "web": {
       "output": "static"

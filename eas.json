@@ -12,14 +12,23 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_SERVER_BASE_URL": "https://dashboard.infogssiot.com/api/",
-        "EXPO_PUBLIC_SOCKET_BASE_URL": "https://dashboard.infogssiot.com"
+        "EXPO_PUBLIC_SOCKET_BASE_URL": "https://dashboard.infogssiot.com",
+        "EXPO_PUBLIC_S3_ASSET_BASE_URL": "https://gss-assets-prod.s3.ap-northeast-2.amazonaws.com"
       },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SERVER_BASE_URL": "https://dashboard.infogssiot.com/api/",
+        "EXPO_PUBLIC_SOCKET_BASE_URL": "https://dashboard.infogssiot.com",
+        "EXPO_PUBLIC_S3_ASSET_BASE_URL": "https://gss-assets-prod.s3.ap-northeast-2.amazonaws.com"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {

@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -18,10 +19,13 @@ export default function BuildingsScreen() {
   const [user, setUser] = useState<any>(null);
   const [buildings, setBuildings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchBuildings = async () => {
+  const fetchBuildings = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       const savedUser = await AsyncStorage.getItem("user");
       const loginUser = savedUser ? JSON.parse(savedUser) : null;
@@ -51,16 +55,14 @@ export default function BuildingsScreen() {
         statsMap.set(id, building.statistics || {});
       });
 
-      const mergedBuildings = Array.isArray(allBuildings)
-        ? allBuildings.map((building: any) => {
-            const buildingId = String(building._id || building.id);
+      const mergedBuildings = allBuildings.map((building: any) => {
+        const buildingId = String(building._id || building.id);
 
-            return {
-              ...building,
-              statistics: statsMap.get(buildingId) || {},
-            };
-          })
-        : [];
+        return {
+          ...building,
+          statistics: statsMap.get(buildingId) || {},
+        };
+      });
 
       const filteredBuildings = targetCompanyId
         ? mergedBuildings.filter((building: any) => {
@@ -76,7 +78,18 @@ export default function BuildingsScreen() {
       console.log(error?.response?.data || error);
       alert("건물 목록을 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchBuildings(true);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -110,6 +123,14 @@ export default function BuildingsScreen() {
             paddingBottom: 30,
           }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#1E2F5C"]}
+              tintColor="#1E2F5C"
+            />
+          }
         >
           <View>
             {buildings.map((building) => {

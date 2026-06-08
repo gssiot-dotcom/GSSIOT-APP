@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 import { getBuildingNodesApi } from "../../../api/nodes";
 import HeaderLogo from "../../../components/common/HeaderLogo";
@@ -13,10 +20,13 @@ export default function ScaffoldNodeDetailScreen() {
   const [node, setNode] = useState<any>(null);
   const [gateway, setGateway] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchNodeDetail = async () => {
+  const fetchNodeDetail = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       if (typeof buildingId !== "string") {
         return;
@@ -58,7 +68,18 @@ export default function ScaffoldNodeDetailScreen() {
       console.log(error?.response?.data || error);
       alert("노드 상세 정보를 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchNodeDetail(true);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -113,7 +134,6 @@ export default function ScaffoldNodeDetailScreen() {
   });
 
   const isOpen = node?.doorState === 1 || node?.doorState === true;
-
   const isOffline = String(node?.status).toLowerCase() === "offline";
 
   const statusLabel = isOffline ? "통신불가" : isOpen ? "열림" : "닫힘";
@@ -147,7 +167,6 @@ export default function ScaffoldNodeDetailScreen() {
     "-";
 
   const gatewayStatus = gateway?.gatewayStatus || gateway?.status || "-";
-
   const gatewayAlive = String(gatewayStatus).toLowerCase() !== "offline";
 
   if (loading) {
@@ -157,20 +176,6 @@ export default function ScaffoldNodeDetailScreen() {
 
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1E2F5C" />
-        </View>
-      </View>
-    );
-  }
-
-  if (!node) {
-    return (
-      <View className="flex-1 bg-[#EDEDED]">
-        <HeaderLogo />
-
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">
-            노드 정보를 찾을 수 없습니다.
-          </Text>
         </View>
       </View>
     );
@@ -186,142 +191,160 @@ export default function ScaffoldNodeDetailScreen() {
         </Text>
       </View>
 
-      <View className="flex-1 px-6 pt-4">
-        <View className="bg-white rounded-[28px] shadow-md overflow-hidden border border-gray-100">
-          <View className={`h-2 ${statusColor}`} />
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingTop: 16,
+          paddingBottom: 40,
+        }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#1E2F5C"]}
+            tintColor="#1E2F5C"
+          />
+        }
+      >
+        {!node ? (
+          <View className="items-center mt-20">
+            <Text className="text-gray-500">
+              노드 정보를 찾을 수 없습니다.
+            </Text>
+          </View>
+        ) : (
+          <View className="bg-white rounded-[28px] shadow-md overflow-hidden border border-gray-100">
+            <View className={`h-2 ${statusColor}`} />
 
-          <View className="px-6 py-6">
-            <View className="flex-row justify-between items-center mb-5">
-              <View>
-                <Text className="text-gray-500 text-xs font-bold">
-                  NODE DETAIL
-                </Text>
+            <View className="px-6 py-6">
+              <View className="flex-row justify-between items-center mb-5">
+                <View>
+                  <Text className="text-gray-500 text-xs font-bold">
+                    NODE DETAIL
+                  </Text>
 
-                <Text className="text-[#1E263D] text-2xl font-black mt-1">
-                  노드 {doorNum}
-                </Text>
+                  <Text className="text-[#1E263D] text-2xl font-black mt-1">
+                    노드 {doorNum}
+                  </Text>
+                </View>
+
+                <View className={`${statusChipBg} px-4 py-2 rounded-full`}>
+                  <Text className={`${statusTextColor} text-sm font-black`}>
+                    {statusLabel}
+                  </Text>
+                </View>
               </View>
 
-              <View className={`${statusChipBg} px-4 py-2 rounded-full`}>
-                <Text className={`${statusTextColor} text-sm font-black`}>
-                  {statusLabel}
-                </Text>
-              </View>
-            </View>
-
-            <View className="mb-6 bg-[#F6F7FA] rounded-2xl p-3">
-              <Image
-                source={require("../../../assets/images/scaffoldnode_img.png")}
-                className="w-full h-44"
-                resizeMode="contain"
-              />
-            </View>
-
-            <View className="flex-row gap-3 mb-3">
-              <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                <Text className="text-gray-500 text-xs font-bold mb-1">
-                  게이트웨이
-                </Text>
-
-                <Text className="text-[#1E263D] text-base font-black">
-                  {gatewaySerial}
-                </Text>
+              <View className="mb-6 bg-[#F6F7FA] rounded-2xl p-3">
+                <Image
+                  source={require("../../../assets/images/scaffoldnode_img.png")}
+                  className="w-full h-44"
+                  resizeMode="contain"
+                />
               </View>
 
-              <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                <Text className="text-gray-500 text-xs font-bold mb-1">
-                  통신상태
-                </Text>
-
-                <View className="flex-row items-center">
-                  <View
-                    className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                      isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
-                    }`}
-                  />
+              <View className="flex-row gap-3 mb-3">
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
+                  <Text className="text-gray-500 text-xs font-bold mb-1">
+                    게이트웨이
+                  </Text>
 
                   <Text className="text-[#1E263D] text-base font-black">
-                    {isOffline ? "Off" : "On"}
+                    {gatewaySerial}
+                  </Text>
+                </View>
+
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
+                  <Text className="text-gray-500 text-xs font-bold mb-1">
+                    통신상태
+                  </Text>
+
+                  <View className="flex-row items-center">
+                    <View
+                      className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                        isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
+                      }`}
+                    />
+
+                    <Text className="text-[#1E263D] text-base font-black">
+                      {isOffline ? "Off" : "On"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View className="bg-[#F6F7FA] rounded-2xl px-4 py-4 mb-3">
+                <View className="flex-row items-center mb-1">
+                  <Ionicons name="location-outline" size={15} color="#6B7280" />
+
+                  <Text className="text-gray-500 text-xs font-bold ml-1">
+                    위치
+                  </Text>
+                </View>
+
+                <Text className="text-[#1E263D] text-base font-black">
+                  {position}
+                </Text>
+              </View>
+
+              <View className="bg-[#F6F7FA] rounded-2xl px-4 py-4 mb-3">
+                <Text className="text-gray-500 text-xs font-bold mb-2">
+                  배터리 상태
+                </Text>
+
+                <View className="flex-row justify-between mb-2">
+                  <Text className="text-[#1E263D] text-base font-black">
+                    {battery}%
+                  </Text>
+
+                  <Ionicons name="battery-full" size={20} color="#2563EB" />
+                </View>
+
+                <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <View
+                    className="h-full bg-[#63A0FF] rounded-full"
+                    style={{ width: `${battery}%` }}
+                  />
+                </View>
+              </View>
+
+              <View className="flex-row gap-3">
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
+                  <Text className="text-gray-500 text-xs font-bold mb-1">
+                    도어 번호
+                  </Text>
+
+                  <Text className="text-[#1E263D] text-xl font-black">
+                    {doorNum}
+                  </Text>
+                </View>
+
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
+                  <Text className="text-gray-500 text-xs font-bold mb-1">
+                    상태값
+                  </Text>
+
+                  <Text className="text-[#D9332A] text-xl font-black">
+                    {node?.doorState ?? "-"}
+                  </Text>
+                </View>
+
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
+                  <Text className="text-gray-500 text-xs font-bold mb-1">
+                    게이트웨이 상태
+                  </Text>
+
+                  <Text className="text-[#1E263D] text-xl font-black">
+                    {gatewayAlive ? "On" : "Off"}
                   </Text>
                 </View>
               </View>
             </View>
-
-            <View className="bg-[#F6F7FA] rounded-2xl px-4 py-4 mb-3">
-              <View className="flex-row items-center mb-1">
-                <Ionicons
-                  name="location-outline"
-                  size={15}
-                  color="#6B7280"
-                />
-
-                <Text className="text-gray-500 text-xs font-bold ml-1">
-                  위치
-                </Text>
-              </View>
-
-              <Text className="text-[#1E263D] text-base font-black">
-                {position}
-              </Text>
-            </View>
-
-            <View className="bg-[#F6F7FA] rounded-2xl px-4 py-4 mb-3">
-              <Text className="text-gray-500 text-xs font-bold mb-2">
-                배터리 상태
-              </Text>
-
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-[#1E263D] text-base font-black">
-                  {battery}%
-                </Text>
-
-                <Ionicons name="battery-full" size={20} color="#2563EB" />
-              </View>
-
-              <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <View
-                  className="h-full bg-[#63A0FF] rounded-full"
-                  style={{
-                    width: `${battery}%`,
-                  }}
-                />
-              </View>
-            </View>
-
-            <View className="flex-row gap-3">
-              <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                <Text className="text-gray-500 text-xs font-bold mb-1">
-                  도어 번호
-                </Text>
-
-                <Text className="text-[#1E263D] text-xl font-black">
-                  {doorNum}
-                </Text>
-              </View>
-
-              <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                <Text className="text-gray-500 text-xs font-bold mb-1">
-                  상태값
-                </Text>
-
-                <Text className="text-[#D9332A] text-xl font-black">
-                  {node?.doorState ?? "-"}
-                </Text>
-              </View>
-
-              <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                <Text className="text-gray-500 text-xs font-bold mb-1">
-                  게이트웨이 상태
-                </Text>
-
-                <Text className="text-[#1E263D] text-xl font-black">
-                  {gatewayAlive ? "On" : "Off"}
-                </Text>
-              </View>
-            </View>
           </View>
-        </View>
-      </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
