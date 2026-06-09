@@ -1,10 +1,29 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 
 import { getBuildingsApi } from "../../api/buildings";
 import HeaderLogo from "../../components/common/HeaderLogo";
+
+const S3_ASSET_BASE_URL = process.env.EXPO_PUBLIC_S3_ASSET_BASE_URL;
+
+const getAssetUrl = (key?: string | null) => {
+  if (!key) return "";
+
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+
+  const normalizedKey = key.replace(/^\/+/, "");
+
+  const encodedKey = normalizedKey
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+
+  return `${S3_ASSET_BASE_URL}/${encodedKey}`;
+};
 
 const nodeTypes = [
   {
@@ -25,7 +44,7 @@ const nodeTypes = [
 ] as const;
 
 export default function NodetypesScreen() {
-  const { siteName, buildingId, companyId, buildingPlanImage } =
+  const { siteName, buildingId, companyId, buildingPlanImage, companyLogo } =
     useLocalSearchParams();
 
   const [user, setUser] = useState<any>(null);
@@ -47,6 +66,14 @@ export default function NodetypesScreen() {
       typeof buildingPlanImage === "string" ? buildingPlanImage : "[]"
     );
 
+  const [currentCompanyLogo, setCurrentCompanyLogo] = useState<string>(
+    typeof companyLogo === "string" ? companyLogo : ""
+  );
+
+  const companyLogoUri = useMemo(() => {
+    return getAssetUrl(currentCompanyLogo);
+  }, [currentCompanyLogo]);
+
   const fetchUserBuilding = async () => {
     try {
       const savedUser = await AsyncStorage.getItem("user");
@@ -60,6 +87,10 @@ export default function NodetypesScreen() {
       if (siteName && buildingId) {
         if (typeof buildingPlanImage === "string") {
           setCurrentBuildingPlanImage(buildingPlanImage);
+        }
+
+        if (typeof companyLogo === "string") {
+          setCurrentCompanyLogo(companyLogo);
         }
 
         return;
@@ -85,6 +116,10 @@ export default function NodetypesScreen() {
         setCurrentBuildingPlanImage(
           JSON.stringify(myBuilding.buildingPlanImage || [])
         );
+
+        setCurrentCompanyLogo(
+          myBuilding.companyId?.companyLogo || myBuilding.companyLogo || ""
+        );
       }
     } catch (error) {
       console.log("user building error:", error);
@@ -99,14 +134,26 @@ export default function NodetypesScreen() {
     <View className="flex-1 bg-[#EDEDED]">
       <HeaderLogo />
 
-      <View className="bg-white px-4 py-4 border-b border-gray-300">
-        <Text className="text-lg font-black text-gray-900">
-          서비스 목록 - {currentSiteName || "건물 없음"}
-        </Text>
+      <View className="bg-white px-4 py-4 border-b border-gray-300 flex-row items-center justify-between">
+        <View className="flex-1 pr-3">
+          <Text className="text-lg font-black text-gray-900">
+            서비스 목록 - {currentSiteName || "건물 없음"}
+          </Text>
 
-        <Text className="text-xs text-gray-500 mt-1">
-          {user?.name || "-"} ({user?.userType || "-"})
-        </Text>
+          <Text className="text-xs text-gray-500 mt-1">
+            {user?.name || "-"} ({user?.userType || "-"})
+          </Text>
+        </View>
+
+        {companyLogoUri ? (
+          <View className="w-24 h-14 rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <Image
+              source={{ uri: companyLogoUri }}
+              className="w-full h-full"
+              resizeMode="contain"
+            />
+          </View>
+        ) : null}
       </View>
 
       <View className="px-4 pt-8 gap-8">
@@ -121,6 +168,7 @@ export default function NodetypesScreen() {
                   buildingId: currentBuildingId,
                   companyId: currentCompanyId,
                   buildingPlanImage: currentBuildingPlanImage,
+                  companyLogo: currentCompanyLogo,
                 },
               } as any)
             }

@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   RefreshControl,
   ScrollView,
   Text,
@@ -13,13 +14,36 @@ import {
 import { getBuildingsApi, getBuildingStatsApi } from "../../api/buildings";
 import HeaderLogo from "../../components/common/HeaderLogo";
 
+const S3_ASSET_BASE_URL = process.env.EXPO_PUBLIC_S3_ASSET_BASE_URL;
+
+const getAssetUrl = (key?: string | null) => {
+  if (!key) return "";
+
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+
+  const normalizedKey = key.replace(/^\/+/, "");
+
+  const encodedKey = normalizedKey
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+
+  return `${S3_ASSET_BASE_URL}/${encodedKey}`;
+};
+
 export default function BuildingsScreen() {
-  const { companyName, companyId } = useLocalSearchParams();
+  const { companyName, companyId, companyLogo } = useLocalSearchParams();
 
   const [user, setUser] = useState<any>(null);
   const [buildings, setBuildings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const companyLogoUri = useMemo(() => {
+    return getAssetUrl(typeof companyLogo === "string" ? companyLogo : "");
+  }, [companyLogo]);
 
   const fetchBuildings = async (isRefresh = false) => {
     try {
@@ -37,9 +61,6 @@ export default function BuildingsScreen() {
       const buildingsResult = await getBuildingsApi();
       const statsResult = await getBuildingStatsApi(targetCompanyId);
 
-      console.log("buildings result:", buildingsResult);
-      console.log("building stats result:", statsResult);
-
       const allBuildings = Array.isArray(buildingsResult.data)
         ? buildingsResult.data
         : [];
@@ -51,7 +72,6 @@ export default function BuildingsScreen() {
 
       statsBuildings.forEach((building: any) => {
         const id = String(building._id || building.id);
-
         statsMap.set(id, building.statistics || {});
       });
 
@@ -101,14 +121,26 @@ export default function BuildingsScreen() {
     <View className="flex-1 bg-[#EDEDED]">
       <HeaderLogo />
 
-      <View className="bg-white px-4 py-4 border-b border-gray-300">
-        <Text className="text-lg font-black text-gray-900">
-          건물 목록 - {companyName || "전체"}
-        </Text>
+      <View className="bg-white px-4 py-4 border-b border-gray-300 flex-row items-center justify-between">
+        <View className="flex-1 pr-3">
+          <Text className="text-lg font-black text-gray-900">
+            건물 목록 - {companyName || "전체"}
+          </Text>
 
-        <Text className="text-xs text-gray-500 mt-1">
-          {user?.name || "-"} ({user?.userType || "-"})
-        </Text>
+          <Text className="text-xs text-gray-500 mt-1">
+            {user?.name || "-"} ({user?.userType || "-"})
+          </Text>
+        </View>
+
+        {companyLogoUri ? (
+          <View className="w-24 h-14 rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <Image
+              source={{ uri: companyLogoUri }}
+              className="w-full h-full"
+              resizeMode="cover"
+            />
+          </View>
+        ) : null}
       </View>
 
       {loading ? (
@@ -188,6 +220,7 @@ export default function BuildingsScreen() {
                           building.companyId?._id || building.companyId
                         ),
                         buildingPlanImage,
+                        companyLogo: typeof companyLogo === "string" ? companyLogo : "",
                       },
                     } as any)
                   }
@@ -219,7 +252,6 @@ export default function BuildingsScreen() {
                       <Text className="text-gray-500 text-[11px] font-bold mb-2">
                         게이트웨이
                       </Text>
-
                       <Text className="text-[#1E263D] text-2xl font-black">
                         {gatewayCount}
                       </Text>
@@ -229,7 +261,6 @@ export default function BuildingsScreen() {
                       <Text className="text-gray-500 text-[11px] font-bold mb-2">
                         해치발판
                       </Text>
-
                       <Text className="text-[#1E263D] text-2xl font-black">
                         {hatchCount}
                       </Text>
@@ -239,7 +270,6 @@ export default function BuildingsScreen() {
                       <Text className="text-gray-500 text-[11px] font-bold mb-2">
                         비계전도
                       </Text>
-
                       <Text className="text-[#1E263D] text-2xl font-black">
                         {angleCount}
                       </Text>
@@ -249,7 +279,6 @@ export default function BuildingsScreen() {
                       <Text className="text-gray-500 text-[11px] font-bold mb-2">
                         수직노드
                       </Text>
-
                       <Text className="text-[#1E263D] text-2xl font-black">
                         {verticalCount}
                       </Text>

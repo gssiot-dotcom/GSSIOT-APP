@@ -37,10 +37,7 @@ export default function CompaniesScreen() {
 
       console.log("companies result:", result);
 
-      const companyList =
-        result.data?.companies ||
-        result.companies ||
-        [];
+      const companyList = result.data?.companies || result.companies || [];
 
       setCompanies(Array.isArray(companyList) ? companyList : []);
     } catch (error: any) {
@@ -57,10 +54,7 @@ export default function CompaniesScreen() {
     try {
       setRefreshing(true);
 
-      await Promise.all([
-        fetchUser(),
-        fetchCompanies(true),
-      ]);
+      await Promise.all([fetchUser(), fetchCompanies(true)]);
     } finally {
       setRefreshing(false);
     }
@@ -76,9 +70,7 @@ export default function CompaniesScreen() {
       <HeaderLogo />
 
       <View className="bg-white px-4 py-4 border-b border-gray-300">
-        <Text className="text-lg font-black text-gray-900">
-          건설사 목록
-        </Text>
+        <Text className="text-lg font-black text-gray-900">건설사 목록</Text>
 
         <Text className="text-xs text-gray-500 mt-1">
           {user?.name || "-"} ({user?.userType || "-"})
@@ -112,16 +104,13 @@ export default function CompaniesScreen() {
 
               const companyId = company._id || company.id;
 
-              const companyName =
-                company.companyName ||
-                "이름 없음";
+              const companyName = company.companyName || "이름 없음";
 
-              const companyAddress =
-                company.companyAddress ||
-                "-";
+              const companyAddress = company.companyAddress || "-";
 
-              const buildingCount =
-                item.companyStatistics?.buildingsCount || 0;
+              const companyLogo = company.companyLogo || "";
+
+              const buildingCount = item.companyStatistics?.buildingsCount || 0;
 
               return (
                 <TouchableOpacity
@@ -137,6 +126,7 @@ export default function CompaniesScreen() {
                       params: {
                         companyId: String(companyId),
                         companyName: String(companyName),
+                        companyLogo: String(companyLogo),
                       },
                     } as any)
                   }
@@ -173,9 +163,7 @@ export default function CompaniesScreen() {
 
                   <View className="items-start">
                     <View className="bg-gray-100 rounded-lg px-4 py-2">
-                      <Text className="text-xs text-gray-600">
-                        건물 보기 →
-                      </Text>
+                      <Text className="text-xs text-gray-600">건물 보기 →</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -185,9 +173,7 @@ export default function CompaniesScreen() {
 
           {!companies.length && (
             <View className="items-center mt-20">
-              <Text className="text-gray-500">
-                등록된 회사가 없습니다.
-              </Text>
+              <Text className="text-gray-500">등록된 회사가 없습니다.</Text>
             </View>
           )}
         </ScrollView>
