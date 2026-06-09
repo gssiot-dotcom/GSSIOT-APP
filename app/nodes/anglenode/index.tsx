@@ -18,6 +18,11 @@ import { useRealtimeRoom } from "../../../hooks/useRealtime";
 
 const COLUMN_COUNT = 3;
 
+const statusOptions = ["전체상태", "주의", "경고", "위험", "비활성"];
+
+const getGatewaySerial = (node: any) =>
+  node.gateway?.serialNumber || node.gateway?.serial_number || "-";
+
 const getStatusInfo = (
   alarm: number,
   alarmLevel: any,
@@ -29,7 +34,7 @@ const getStatusInfo = (
 
   if (isOffline) {
     return {
-      label: "통신불가",
+      label: "비활성",
       bar: "bg-[#6B7280]",
       border: "border-[#9CA3AF]",
       bg: "bg-[#F3F4F6]",
@@ -81,6 +86,33 @@ const getStatusInfo = (
   };
 };
 
+const getAngleX = (node: any) =>
+  Number(
+    node.angleX ??
+      node.calibratedX ??
+      node.angle_x ??
+      node.calibrated_x ??
+      0
+  );
+
+const getAngleY = (node: any) =>
+  Number(
+    node.angleY ??
+      node.calibratedY ??
+      node.angle_y ??
+      node.calibrated_y ??
+      0
+  );
+
+const getNodeStatusLabel = (node: any, alarmLevel: any) => {
+  const axisX = getAngleX(node);
+  const axisY = getAngleY(node);
+  const isOffline = String(node.status).toLowerCase() === "offline";
+  const maxAlarm = Math.max(Math.abs(axisX), Math.abs(axisY));
+
+  return getStatusInfo(maxAlarm, alarmLevel, isOffline).label;
+};
+
 export default function AngleNodeScreen() {
   const { siteName, buildingId, companyId } = useLocalSearchParams();
 
@@ -90,14 +122,14 @@ export default function AngleNodeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [selectedZone, setSelectedZone] = useState("전체구역");
-  const [selectedNode, setSelectedNode] = useState("전체노드");
+  const [selectedStatus, setSelectedStatus] = useState("전체상태");
 
   const [zoneOpen, setZoneOpen] = useState(false);
-  const [nodeOpen, setNodeOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   const closeDropdowns = () => {
     setZoneOpen(false);
-    setNodeOpen(false);
+    setStatusOpen(false);
   };
 
   const fetchAngleNodes = async (isRefresh = false) => {
@@ -122,9 +154,6 @@ export default function AngleNodeScreen() {
       const nodesList = result.data?.nodesList || result.nodesList || [];
       const gatewayList = result.data?.gatewayList || result.gatewayList || [];
 
-      console.log("angle nodesList length:", nodesList.length);
-      console.log("angle first node:", nodesList[0]);
-
       const buildingAlarmLevel =
         result.data?.buildingAlarmLevel || result.buildingAlarmLevel || null;
 
@@ -132,18 +161,27 @@ export default function AngleNodeScreen() {
 
       const nodesWithGateway = nodesList.map((node: any) => {
         const nodeGatewayId =
+          node.gateway?._id ||
+          node.gateway?.id ||
           node.gatewayId?._id ||
+          node.gatewayId?.id ||
           node.gatewayId ||
           node.gateway_id?._id ||
+          node.gateway_id?.id ||
           node.gateway_id;
 
-        const gateway = gatewayList.find(
-          (gw: any) => String(gw._id || gw.id) === String(nodeGatewayId)
-        );
+        const gateway =
+          node.gateway && typeof node.gateway === "object"
+            ? node.gateway
+            : gatewayList.find((gw: any) => {
+                const gatewayId = gw._id || gw.id;
+
+                return String(gatewayId) === String(nodeGatewayId);
+              });
 
         return {
           ...node,
-          gateway,
+          gateway: gateway || null,
         };
       });
 
@@ -200,19 +238,14 @@ export default function AngleNodeScreen() {
 
           return {
             ...node,
-
             angleX: payload.angleX ?? node.angleX,
             angleY: payload.angleY ?? node.angleY,
-
             angle_x: payload.angleX ?? payload.angle_x ?? node.angle_x,
             angle_y: payload.angleY ?? payload.angle_y ?? node.angle_y,
-
             calibratedX: payload.angleX ?? node.calibratedX,
             calibratedY: payload.angleY ?? node.calibratedY,
-
             calibrated_x: payload.angleX ?? node.calibrated_x,
             calibrated_y: payload.angleY ?? node.calibrated_y,
-
             status: payload.status ?? node.status,
             lastSeenAt: payload.updatedAt ?? payload.lastSeenAt,
             updatedAt: payload.updatedAt ?? node.updatedAt,
@@ -227,35 +260,24 @@ export default function AngleNodeScreen() {
     ...Array.from(
       new Set(
         angleNodes
-          .map((node) => node.gateway?.zoneName || node.gateway?.zone_name)
-          .filter(Boolean)
+          .map((node) => getGatewaySerial(node))
+          .filter((serial) => serial && serial !== "-")
       )
     ),
   ];
 
-  const nodeNumbers = [
-    "전체노드",
-    ...angleNodes
-      .filter((node) => {
-        if (selectedZone === "전체구역") return true;
-
-        return (
-          (node.gateway?.zoneName || node.gateway?.zone_name) === selectedZone
-        );
-      })
-      .map((node) => String(node.number)),
-  ];
-
   const filteredAngleNodes = angleNodes
     .filter((node) => {
+      const gatewaySerial = getGatewaySerial(node);
+      const statusLabel = getNodeStatusLabel(node, alarmLevel);
+
       const zoneMatched =
-        selectedZone === "전체구역" ||
-        (node.gateway?.zoneName || node.gateway?.zone_name) === selectedZone;
+        selectedZone === "전체구역" || gatewaySerial === selectedZone;
 
-      const nodeMatched =
-        selectedNode === "전체노드" || String(node.number) === selectedNode;
+      const statusMatched =
+        selectedStatus === "전체상태" || statusLabel === selectedStatus;
 
-      return zoneMatched && nodeMatched;
+      return zoneMatched && statusMatched;
     })
     .sort((a, b) => {
       const aOffline = String(a.status).toLowerCase() === "offline";
@@ -264,21 +286,10 @@ export default function AngleNodeScreen() {
       if (aOffline && !bOffline) return 1;
       if (!aOffline && bOffline) return -1;
 
-      const aX = Number(
-        a.angleX ?? a.calibratedX ?? a.calibrated_x ?? a.angle_x ?? 0
-      );
-
-      const aY = Number(
-        a.angleY ?? a.calibratedY ?? a.calibrated_y ?? a.angle_y ?? 0
-      );
-
-      const bX = Number(
-        b.angleX ?? b.calibratedX ?? b.calibrated_x ?? b.angle_x ?? 0
-      );
-
-      const bY = Number(
-        b.angleY ?? b.calibratedY ?? b.calibrated_y ?? b.angle_y ?? 0
-      );
+      const aX = getAngleX(a);
+      const aY = getAngleY(a);
+      const bX = getAngleX(b);
+      const bY = getAngleY(b);
 
       return (
         Math.max(Math.abs(bX), Math.abs(bY)) -
@@ -327,7 +338,7 @@ export default function AngleNodeScreen() {
                 onPress={(e) => {
                   e.stopPropagation();
                   setZoneOpen(!zoneOpen);
-                  setNodeOpen(false);
+                  setStatusOpen(false);
                 }}
                 className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
@@ -341,15 +352,13 @@ export default function AngleNodeScreen() {
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
-                  setNodeOpen(!nodeOpen);
+                  setStatusOpen(!statusOpen);
                   setZoneOpen(false);
                 }}
                 className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
                 <Text className="text-white text-xs font-bold">
-                  {selectedNode === "전체노드"
-                    ? "전체노드"
-                    : `노드 ${selectedNode}`}
+                  {selectedStatus}
                 </Text>
 
                 <Ionicons name="chevron-down" size={14} color="white" />
@@ -401,7 +410,7 @@ export default function AngleNodeScreen() {
         </View>
 
         {zoneOpen && (
-          <View className="absolute top-[150px] right-[96px] w-36 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
+          <View className="absolute top-[150px] right-[106px] w-36 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
               {zones.map((zone) => (
                 <Pressable
@@ -409,7 +418,6 @@ export default function AngleNodeScreen() {
                   onPress={(e) => {
                     e.stopPropagation();
                     setSelectedZone(zone);
-                    setSelectedNode("전체노드");
                     setZoneOpen(false);
                   }}
                   className={`px-3 py-3 ${
@@ -425,23 +433,23 @@ export default function AngleNodeScreen() {
           </View>
         )}
 
-        {nodeOpen && (
+        {statusOpen && (
           <View className="absolute top-[150px] right-4 w-28 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
-              {nodeNumbers.map((node) => (
+              {statusOptions.map((status) => (
                 <Pressable
-                  key={node}
+                  key={status}
                   onPress={(e) => {
                     e.stopPropagation();
-                    setSelectedNode(node);
-                    setNodeOpen(false);
+                    setSelectedStatus(status);
+                    setStatusOpen(false);
                   }}
                   className={`px-3 py-3 ${
-                    selectedNode === node ? "bg-[#EEF1FF]" : "bg-white"
+                    selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
                   }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
-                    {node === "전체노드" ? node : `노드 ${node}`}
+                    {status}
                   </Text>
                 </Pressable>
               ))}
@@ -475,32 +483,15 @@ export default function AngleNodeScreen() {
                 return <View className="w-[31.5%] mb-4" />;
               }
 
-              const axisX = Number(
-                item.angleX ??
-                  item.calibratedX ??
-                  item.angle_x ??
-                  item.calibrated_x ??
-                  0
-              );
-
-              const axisY = Number(
-                item.angleY ??
-                  item.calibratedY ??
-                  item.angle_y ??
-                  item.calibrated_y ??
-                  0
-              );
+              const axisX = getAngleX(item);
+              const axisY = getAngleY(item);
 
               const isOffline = String(item.status).toLowerCase() === "offline";
 
               const maxAlarm = Math.max(Math.abs(axisX), Math.abs(axisY));
               const status = getStatusInfo(maxAlarm, alarmLevel, isOffline);
 
-              const gatewaySerial =
-                item.gateway?.serialNumber ||
-                item.gateway?.gatewaySerialNumber ||
-                item.gateway?.serial_number ||
-                "-";
+              const gatewaySerial = getGatewaySerial(item);
 
               const location =
                 item.installedLocation && String(item.installedLocation).trim()
@@ -602,7 +593,7 @@ export default function AngleNodeScreen() {
             ListEmptyComponent={
               <View className="items-center mt-20">
                 <Text className="text-gray-500">
-                  등록된 비계전도 노드가 없습니다.
+                  선택한 조건의 비계전도 노드가 없습니다.
                 </Text>
               </View>
             }

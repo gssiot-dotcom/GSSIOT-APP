@@ -18,6 +18,8 @@ import { useRealtimeRoom } from "../../../hooks/useRealtime";
 
 const COLUMN_COUNT = 3;
 
+const statusOptions = ["전체상태", "주의", "경고", "위험", "비활성"];
+
 const getNumber = (...values: any[]) => {
   for (const value of values) {
     if (value !== undefined && value !== null && value !== "") {
@@ -52,15 +54,19 @@ const getNodeY = (node: any) =>
     node?.y
   );
 
-const getGateway = (node: any) => node?.gateway || null;
+const getGateway = (node: any) =>
+  node?.gateway || node?.gatewayId || node?.gateway_id || null;
 
 const getZoneName = (node: any) =>
-  getGateway(node)?.zoneName || getGateway(node)?.zone_name || "구역 없음";
+  getGateway(node)?.serialNumber ||
+  getGateway(node)?.serial_number ||
+  "구역 없음";
 
 const getGatewaySerial = (node: any) =>
   getGateway(node)?.serialNumber ||
   getGateway(node)?.gatewaySerialNumber ||
   getGateway(node)?.serial_number ||
+  getGateway(node)?.gateway_serial_number ||
   "-";
 
 const getLocation = (node: any) => {
@@ -90,7 +96,7 @@ const getStatusInfo = (
 
   if (isOffline) {
     return {
-      label: "통신불가",
+      label: "비활성",
       bar: "bg-[#6B7280]",
       border: "border-[#9CA3AF]",
       bg: "bg-[#F3F4F6]",
@@ -147,6 +153,15 @@ const getStatusInfo = (
   };
 };
 
+const getNodeStatusLabel = (node: any, alarmLevel: any) => {
+  const x = getNodeX(node);
+  const y = getNodeY(node);
+  const isOffline = String(node.status).toLowerCase() === "offline";
+  const maxAlarm = Math.max(Math.abs(x), Math.abs(y));
+
+  return getStatusInfo(maxAlarm, alarmLevel, isOffline).label;
+};
+
 const formatValue = (value: number) => {
   if (value > 0) return `+${value.toFixed(1)}`;
   return value.toFixed(1);
@@ -178,13 +193,14 @@ export default function VerticalNodeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [selectedZone, setSelectedZone] = useState("전체구역");
-  const [selectedNode, setSelectedNode] = useState("전체노드");
+  const [selectedStatus, setSelectedStatus] = useState("전체상태");
+
   const [zoneOpen, setZoneOpen] = useState(false);
-  const [nodeOpen, setNodeOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   const closeDropdowns = () => {
     setZoneOpen(false);
-    setNodeOpen(false);
+    setStatusOpen(false);
   };
 
   const fetchVerticalNodes = async (isRefresh = false) => {
@@ -204,8 +220,6 @@ export default function VerticalNodeScreen() {
         nodeType: "gangform_node",
       });
 
-      console.log("vertical nodes result:", result);
-
       const nodesList = result.data?.nodesList || result.nodesList || [];
       const gatewayList = result.data?.gatewayList || result.gatewayList || [];
 
@@ -216,18 +230,29 @@ export default function VerticalNodeScreen() {
 
       const nodesWithGateway = nodesList.map((node: any) => {
         const nodeGatewayId =
+          node.gateway?._id ||
+          node.gateway?.id ||
           node.gatewayId?._id ||
+          node.gatewayId?.id ||
           node.gatewayId ||
           node.gateway_id?._id ||
-          node.gateway_id;
+          node.gateway_id?.id ||
+          node.gateway_id ||
+          node.gatewayObjectId ||
+          node.gatewayObjectID;
 
-        const gateway = gatewayList.find(
-          (gw: any) => String(gw._id || gw.id) === String(nodeGatewayId)
-        );
+        const gateway =
+          node.gateway && typeof node.gateway === "object"
+            ? node.gateway
+            : gatewayList.find((gw: any) => {
+                const gatewayId = gw._id || gw.id;
+
+                return String(gatewayId) === String(nodeGatewayId);
+              });
 
         return {
           ...node,
-          gateway,
+          gateway: gateway || null,
         };
       });
 
@@ -262,8 +287,6 @@ export default function VerticalNodeScreen() {
     nodeType: "vertical",
 
     onMessage: (payload: any) => {
-      console.log("vertical realtime:", payload);
-
       setVerticalNodes((prev) =>
         prev.map((node) => {
           const payloadNumber =
@@ -283,21 +306,15 @@ export default function VerticalNodeScreen() {
 
           return {
             ...node,
-
             angleX: payload.angleX ?? node.angleX,
             angleY: payload.angleY ?? node.angleY,
-
             angle_x: payload.angleX ?? payload.angle_x ?? node.angle_x,
             angle_y: payload.angleY ?? payload.angle_y ?? node.angle_y,
-
             calibratedX: payload.angleX ?? node.calibratedX,
             calibratedY: payload.angleY ?? node.calibratedY,
-
             calibrated_x: payload.angleX ?? node.calibrated_x,
             calibrated_y: payload.angleY ?? node.calibrated_y,
-
             status: payload.status ?? node.status,
-
             lastSeenAt: payload.updatedAt ?? payload.lastSeenAt,
             updatedAt: payload.updatedAt ?? node.updatedAt,
           };
@@ -317,27 +334,17 @@ export default function VerticalNodeScreen() {
     ),
   ];
 
-  const nodeNumbers = [
-    "전체노드",
-    ...verticalNodes
-      .filter((node) => {
-        const zone = getZoneName(node);
-        return selectedZone === "전체구역" || zone === selectedZone;
-      })
-      .map((node) => `노드 ${getNodeNumber(node)}`),
-  ];
-
   const filteredNodes = verticalNodes
     .filter((node) => {
       const zone = getZoneName(node);
-      const nodeNumber = getNodeNumber(node);
+      const statusLabel = getNodeStatusLabel(node, alarmLevel);
 
       const zoneMatched = selectedZone === "전체구역" || zone === selectedZone;
 
-      const nodeMatched =
-        selectedNode === "전체노드" || selectedNode === `노드 ${nodeNumber}`;
+      const statusMatched =
+        selectedStatus === "전체상태" || statusLabel === selectedStatus;
 
-      return zoneMatched && nodeMatched;
+      return zoneMatched && statusMatched;
     })
     .sort((a, b) => {
       const aOffline = String(a.status).toLowerCase() === "offline";
@@ -393,7 +400,7 @@ export default function VerticalNodeScreen() {
                 onPress={(e) => {
                   e.stopPropagation();
                   setZoneOpen(!zoneOpen);
-                  setNodeOpen(false);
+                  setStatusOpen(false);
                 }}
                 className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
@@ -407,13 +414,13 @@ export default function VerticalNodeScreen() {
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
-                  setNodeOpen(!nodeOpen);
+                  setStatusOpen(!statusOpen);
                   setZoneOpen(false);
                 }}
                 className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
                 <Text className="text-white text-xs font-bold">
-                  {selectedNode}
+                  {selectedStatus}
                 </Text>
 
                 <Ionicons name="chevron-down" size={14} color="white" />
@@ -453,15 +460,11 @@ export default function VerticalNodeScreen() {
                 <View className="flex-row items-center mb-1">
                   <View className={`w-3 h-3 rounded-full ${item.color} mr-1`} />
 
-                  <Text className="text-xs text-[#1E263D]">
-                    {item.label}
-                  </Text>
+                  <Text className="text-xs text-[#1E263D]">{item.label}</Text>
                 </View>
 
                 <View className="bg-white border border-gray-300 rounded-md px-3 py-1">
-                  <Text className="text-xs text-[#1E263D]">
-                    {item.value}
-                  </Text>
+                  <Text className="text-xs text-[#1E263D]">{item.value}</Text>
                 </View>
               </View>
             ))}
@@ -469,7 +472,7 @@ export default function VerticalNodeScreen() {
         </View>
 
         {zoneOpen && (
-          <View className="absolute top-[150px] right-[70px] w-36 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
+          <View className="absolute top-[150px] right-[106px] w-36 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
               {zones.map((zone) => (
                 <Pressable
@@ -477,7 +480,6 @@ export default function VerticalNodeScreen() {
                   onPress={(e) => {
                     e.stopPropagation();
                     setSelectedZone(zone);
-                    setSelectedNode("전체노드");
                     setZoneOpen(false);
                   }}
                   className={`px-3 py-3 ${
@@ -493,23 +495,23 @@ export default function VerticalNodeScreen() {
           </View>
         )}
 
-        {nodeOpen && (
+        {statusOpen && (
           <View className="absolute top-[150px] right-4 w-28 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
-              {nodeNumbers.map((node) => (
+              {statusOptions.map((status) => (
                 <Pressable
-                  key={node}
+                  key={status}
                   onPress={(e) => {
                     e.stopPropagation();
-                    setSelectedNode(node);
-                    setNodeOpen(false);
+                    setSelectedStatus(status);
+                    setStatusOpen(false);
                   }}
                   className={`px-3 py-3 ${
-                    selectedNode === node ? "bg-[#EEF1FF]" : "bg-white"
+                    selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
                   }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
-                    {node}
+                    {status}
                   </Text>
                 </Pressable>
               ))}
@@ -701,7 +703,7 @@ export default function VerticalNodeScreen() {
             ListEmptyComponent={
               <View className="items-center mt-20">
                 <Text className="text-gray-500">
-                  등록된 수직노드가 없습니다
+                  선택한 조건의 수직노드가 없습니다
                 </Text>
               </View>
             }
