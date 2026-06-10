@@ -6,6 +6,7 @@ import {
   Image,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -31,6 +32,32 @@ const getAssetUrl = (key?: string | null) => {
     .join("/");
 
   return `${S3_ASSET_BASE_URL}/${encodedKey}`;
+};
+
+const getFirstImageUrl = (imageValue: any) => {
+  if (!imageValue) return "";
+
+  if (typeof imageValue === "string") {
+    return getAssetUrl(imageValue);
+  }
+
+  if (Array.isArray(imageValue) && imageValue.length > 0) {
+    const firstImage = imageValue[0];
+
+    if (typeof firstImage === "string") {
+      return getAssetUrl(firstImage);
+    }
+
+    return getAssetUrl(
+      firstImage?.url ||
+      firstImage?.key ||
+      firstImage?.path ||
+      firstImage?.image ||
+      ""
+    );
+  }
+
+  return "";
 };
 
 export default function BuildingsScreen() {
@@ -86,11 +113,11 @@ export default function BuildingsScreen() {
 
       const filteredBuildings = targetCompanyId
         ? mergedBuildings.filter((building: any) => {
-            const buildingCompanyId =
-              building.companyId?._id || building.companyId;
+          const buildingCompanyId =
+            building.companyId?._id || building.companyId;
 
-            return String(buildingCompanyId) === String(targetCompanyId);
-          })
+          return String(buildingCompanyId) === String(targetCompanyId);
+        })
         : mergedBuildings;
 
       setBuildings(Array.isArray(filteredBuildings) ? filteredBuildings : []);
@@ -118,26 +145,27 @@ export default function BuildingsScreen() {
   }, []);
 
   return (
-    <View className="flex-1 bg-[#EDEDED]">
+    <View className="flex-1 bg-[#F4F6FA]">
       <HeaderLogo />
 
-      <View className="bg-white px-4 py-4 border-b border-gray-300 flex-row items-center justify-between">
+      <View className="px-5 pt-3 pb-3 bg-white flex-row items-center justify-between">
         <View className="flex-1 pr-3">
-          <Text className="text-lg font-black text-gray-900">
-            건물 목록 - {companyName || "전체"}
+          <Text className="text-[20px] font-black text-[#111827]">
+            건물 목록
           </Text>
 
-          <Text className="text-xs text-gray-500 mt-1">
-            {user?.name || "-"} ({user?.userType || "-"})
+          <Text className="text-[12px] text-[#6B7280] font-semibold mt-1">
+            {companyName || "전체"} · {user?.name || "-"} ·{" "}
+            {user?.userType || "-"}
           </Text>
         </View>
 
         {companyLogoUri ? (
-          <View className="w-24 h-14 rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <View className="w-20 h-12 rounded-2xl bg-white border border-[#EEF2F7] overflow-hidden">
             <Image
               source={{ uri: companyLogoUri }}
               className="w-full h-full"
-              resizeMode="cover"
+              resizeMode="contain"
             />
           </View>
         ) : null}
@@ -151,7 +179,8 @@ export default function BuildingsScreen() {
         <ScrollView
           className="flex-1"
           contentContainerStyle={{
-            padding: 14,
+            paddingHorizontal: 16,
+            paddingTop: 6,
             paddingBottom: 30,
           }}
           showsVerticalScrollIndicator={false}
@@ -205,11 +234,22 @@ export default function BuildingsScreen() {
                 building.buildingPlanImage || []
               );
 
+              const buildingRealImageUri = getFirstImageUrl(
+                building.buildingRealImage || building.buildingsRealImage
+              );
+
               return (
                 <TouchableOpacity
                   key={buildingId}
                   activeOpacity={0.9}
-                  className="bg-white rounded-[30px] border border-[#DCE6F5] px-5 py-5 mb-4"
+                  className="rounded-[26px] mb-4 overflow-hidden bg-white border border-[#EEF1F5]"
+                  style={{
+                    shadowColor: "#0F172A",
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 18,
+                    elevation: 4,
+                  }}
                   onPress={() =>
                     router.push({
                       pathname: "/node-types",
@@ -220,68 +260,95 @@ export default function BuildingsScreen() {
                           building.companyId?._id || building.companyId
                         ),
                         buildingPlanImage,
-                        companyLogo: typeof companyLogo === "string" ? companyLogo : "",
+                        companyLogo:
+                          typeof companyLogo === "string" ? companyLogo : "",
+                        buildingRealImage: JSON.stringify(
+                          building.buildingRealImage || building.buildingsRealImage || []
+                        ),
                       },
                     } as any)
                   }
                 >
-                  <View className="flex-row items-center justify-between mb-5">
-                    <View className="flex-1 flex-row items-center pr-3">
-                      <Text
-                        className="text-[18px] font-black text-[#1E263D] mr-3"
-                        numberOfLines={1}
-                      >
-                        {buildingName}
-                      </Text>
+                  <View className="h-36 overflow-hidden">
+                    {buildingRealImageUri ? (
+                      <Image
+                        source={{ uri: buildingRealImageUri }}
+                        resizeMode="cover"
+                        style={StyleSheet.absoluteFillObject}
+                      />
+                    ) : (
+                      <View className="flex-1 bg-[#E5E7EB]" />
+                    )}
 
-                      <Text
-                        className="text-xs text-gray-500 flex-1"
-                        numberOfLines={1}
-                      >
-                        {buildingAddr}
-                      </Text>
+                    <View
+                      style={StyleSheet.absoluteFillObject}
+                      className="bg-black/20"
+                    />
+
+                    <View className="absolute left-4 right-4 bottom-4">
+                      <View className="flex-row items-end justify-between">
+                        <View className="flex-1 pr-3">
+                          <Text
+                            className="text-[22px] font-black text-white"
+                            numberOfLines={1}
+                          >
+                            {buildingName}
+                          </Text>
+
+                          <Text
+                            className="text-[12px] text-white font-semibold mt-1"
+                            numberOfLines={1}
+                          >
+                            {buildingAddr}
+                          </Text>
+                        </View>
+
+                        <View className="w-10 h-10 rounded-full bg-white/90 items-center justify-center">
+                          <Text className="text-[#111827] text-2xl font-black">
+                            ›
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-
-                    <Text className="text-[#1E2F5C] text-2xl font-black">
-                      →
-                    </Text>
                   </View>
 
-                  <View className="flex-row justify-between">
-                    <View className="flex-1 bg-[#F6F7FA] rounded-2xl py-4 items-center mr-2">
-                      <Text className="text-gray-500 text-[11px] font-bold mb-2">
-                        게이트웨이
-                      </Text>
-                      <Text className="text-[#1E263D] text-2xl font-black">
-                        {gatewayCount}
-                      </Text>
-                    </View>
+                  <View className="px-4 py-4 bg-white">
+                    <View className="flex-row justify-between">
+                      <View className="flex-1 rounded-2xl bg-[#F8FAFC] py-3 items-center mr-2">
+                        <Text className="text-[10px] text-[#64748B] font-black mb-1">
+                          게이트웨이
+                        </Text>
+                        <Text className="text-[26px] text-[#111827] font-black">
+                          {gatewayCount}
+                        </Text>
+                      </View>
 
-                    <View className="flex-1 bg-[#F6F7FA] rounded-2xl py-4 items-center mr-2">
-                      <Text className="text-gray-500 text-[11px] font-bold mb-2">
-                        해치발판
-                      </Text>
-                      <Text className="text-[#1E263D] text-2xl font-black">
-                        {hatchCount}
-                      </Text>
-                    </View>
+                      <View className="flex-1 rounded-2xl bg-[#F8FAFC] py-3 items-center mr-2">
+                        <Text className="text-[10px] text-[#64748B] font-black mb-1">
+                          해치발판
+                        </Text>
+                        <Text className="text-[26px] text-[#111827] font-black">
+                          {hatchCount}
+                        </Text>
+                      </View>
 
-                    <View className="flex-1 bg-[#F6F7FA] rounded-2xl py-4 items-center mr-2">
-                      <Text className="text-gray-500 text-[11px] font-bold mb-2">
-                        비계전도
-                      </Text>
-                      <Text className="text-[#1E263D] text-2xl font-black">
-                        {angleCount}
-                      </Text>
-                    </View>
+                      <View className="flex-1 rounded-2xl bg-[#F8FAFC] py-3 items-center mr-2">
+                        <Text className="text-[10px] text-[#64748B] font-black mb-1">
+                          비계전도
+                        </Text>
+                        <Text className="text-[26px] text-[#111827] font-black">
+                          {angleCount}
+                        </Text>
+                      </View>
 
-                    <View className="flex-1 bg-[#F6F7FA] rounded-2xl py-4 items-center">
-                      <Text className="text-gray-500 text-[11px] font-bold mb-2">
-                        수직노드
-                      </Text>
-                      <Text className="text-[#1E263D] text-2xl font-black">
-                        {verticalCount}
-                      </Text>
+                      <View className="flex-1 rounded-2xl bg-[#F8FAFC] py-3 items-center">
+                        <Text className="text-[10px] text-[#64748B] font-black mb-1">
+                          수직노드
+                        </Text>
+                        <Text className="text-[26px] text-[#111827] font-black">
+                          {verticalCount}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </TouchableOpacity>

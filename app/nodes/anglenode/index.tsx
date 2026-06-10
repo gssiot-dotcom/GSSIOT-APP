@@ -89,19 +89,19 @@ const getStatusInfo = (
 const getAngleX = (node: any) =>
   Number(
     node.angleX ??
-      node.calibratedX ??
-      node.angle_x ??
-      node.calibrated_x ??
-      0
+    node.calibratedX ??
+    node.angle_x ??
+    node.calibrated_x ??
+    0
   );
 
 const getAngleY = (node: any) =>
   Number(
     node.angleY ??
-      node.calibratedY ??
-      node.angle_y ??
-      node.calibrated_y ??
-      0
+    node.calibratedY ??
+    node.angle_y ??
+    node.calibrated_y ??
+    0
   );
 
 const getNodeStatusLabel = (node: any, alarmLevel: any) => {
@@ -174,10 +174,10 @@ export default function AngleNodeScreen() {
           node.gateway && typeof node.gateway === "object"
             ? node.gateway
             : gatewayList.find((gw: any) => {
-                const gatewayId = gw._id || gw.id;
+              const gatewayId = gw._id || gw.id;
 
-                return String(gatewayId) === String(nodeGatewayId);
-              });
+              return String(gatewayId) === String(nodeGatewayId);
+            });
 
         return {
           ...node,
@@ -316,37 +316,85 @@ export default function AngleNodeScreen() {
     ),
   ];
 
+  const formatLocation = (value: any) => {
+    if (!value) return "위치정보없음";
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : "위치정보없음";
+    }
+
+    if (typeof value === "object") {
+      const rawX = value.xPercent ?? value.x_percent ?? value.x;
+      const rawY = value.yPercent ?? value.y_percent ?? value.y;
+
+      if (
+        rawX === undefined ||
+        rawX === null ||
+        rawX === "" ||
+        rawY === undefined ||
+        rawY === null ||
+        rawY === ""
+      ) {
+        return "위치정보없음";
+      }
+
+      const x = Number(rawX);
+      const y = Number(rawY);
+
+      if (Number.isNaN(x) || Number.isNaN(y)) {
+        return "위치정보없음";
+      }
+
+      if (x === 0 && y === 0) {
+        return "위치정보없음";
+      }
+
+      return `X:${x.toFixed(1)}% Y:${y.toFixed(1)}%`;
+    }
+
+    return "위치정보없음";
+  };
   return (
     <TouchableWithoutFeedback onPress={closeDropdowns}>
       <View className="flex-1 bg-[#EDEDED]">
         <HeaderLogo />
 
-        <View className="bg-white px-4 py-4 border-b border-gray-300 z-10">
+        <View className="bg-white px-5 pt-2 pb-3 z-10 border-b border-[#EEF2F7]">
           <View className="flex-row justify-between items-center">
             <View className="flex-1 mr-2">
-              <Text className="text-lg font-black text-[#1E263D]">
-                비계전도 감시 시스템
+              <Text className="text-[18px] font-black text-[#111827]">
+                비계전도 감지 시스템
               </Text>
 
-              <Text className="text-xs text-gray-500 mt-1">
-                {siteName || "건물"}
-              </Text>
+              <View className="flex-row items-center mt-1">
+                <Text
+                  className="text-[12px] text-[#64748B] font-semibold"
+                  numberOfLines={1}
+                >
+                  {siteName || "건물"}
+                </Text>
+
+                <Text className="text-[12px] text-[#94A3B8] font-bold ml-2">
+                  · 총 {angleNodes.length}개
+                </Text>
+              </View>
             </View>
 
-            <View className="flex-row gap-2">
+            <View className="flex-row items-center gap-2">
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
                   setZoneOpen(!zoneOpen);
                   setStatusOpen(false);
                 }}
-                className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
+                className="bg-[#EEF4FF] border border-[#DCEAFF] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
-                <Text className="text-white text-xs font-bold">
+                <Text className="text-[#1E2F5C] text-xs font-black">
                   {selectedZone}
                 </Text>
 
-                <Ionicons name="chevron-down" size={14} color="white" />
+                <Ionicons name="chevron-down" size={14} color="#1E2F5C" />
               </Pressable>
 
               <Pressable
@@ -355,9 +403,9 @@ export default function AngleNodeScreen() {
                   setStatusOpen(!statusOpen);
                   setZoneOpen(false);
                 }}
-                className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
+                className="bg-[#111827] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
-                <Text className="text-white text-xs font-bold">
+                <Text className="text-white text-xs font-black">
                   {selectedStatus}
                 </Text>
 
@@ -366,44 +414,60 @@ export default function AngleNodeScreen() {
             </View>
           </View>
 
-          <View className="flex-row mt-4 justify-between">
+          <View className="flex-row mt-3 justify-between">
             {[
               {
                 label: "정상",
-                value: `${alarmLevel?.blue ?? "-"} 이하`,
-                color: "bg-[#4F63F6]",
+                value: `${alarmLevel?.green ?? 0.5} 미만`,
+                color: "bg-[#3B82F6]",
+                bg: "bg-[#EFF6FF]",
+                text: "text-[#2563EB]",
               },
               {
                 label: "주의",
-                value: `${alarmLevel?.green ?? "-"}`,
-                color: "bg-[#6FE24B]",
+                value: `${alarmLevel?.green ?? 1}`,
+                color: "bg-[#22C55E]",
+                bg: "bg-[#F0FDF4]",
+                text: "text-[#15803D]",
               },
               {
                 label: "경고",
-                value: `${alarmLevel?.yellow ?? "-"}`,
-                color: "bg-[#EFE33C]",
+                value: `${alarmLevel?.yellow ?? 2.5}`,
+                color: "bg-[#FACC15]",
+                bg: "bg-[#FEFCE8]",
+                text: "text-[#A16207]",
               },
               {
                 label: "위험",
-                value: `${alarmLevel?.red ?? "-"}`,
-                color: "bg-[#D9332A]",
+                value: `${alarmLevel?.red ?? 4}`,
+                color: "bg-[#EF4444]",
+                bg: "bg-[#FEF2F2]",
+                text: "text-[#DC2626]",
               },
               {
                 label: "비활성",
-                value: `${inactiveCount}`,
-                color: "bg-[#9CA3AF]",
+                value: `${inactiveCount}개`,
+                color: "bg-[#94A3B8]",
+                bg: "bg-[#F1F5F9]",
+                text: "text-[#64748B]",
               },
             ].map((item) => (
-              <View key={item.label} className="items-center">
+              <View
+                key={item.label}
+                className={`rounded-2xl px-2 py-2 items-center ${item.bg}`}
+                style={{ width: "19%" }}
+              >
                 <View className="flex-row items-center mb-1">
-                  <View className={`w-3 h-3 rounded-full ${item.color} mr-1`} />
+                  <View className={`w-2 h-2 rounded-full ${item.color} mr-1`} />
 
-                  <Text className="text-xs text-[#1E263D]">{item.label}</Text>
+                  <Text className={`text-[10px] font-black ${item.text}`}>
+                    {item.label}
+                  </Text>
                 </View>
 
-                <View className="bg-white border border-gray-300 rounded-md px-3 py-1">
-                  <Text className="text-xs text-[#1E263D]">{item.value}</Text>
-                </View>
+                <Text className={`text-[12px] font-black ${item.text}`}>
+                  {item.value}
+                </Text>
               </View>
             ))}
           </View>
@@ -420,9 +484,8 @@ export default function AngleNodeScreen() {
                     setSelectedZone(zone);
                     setZoneOpen(false);
                   }}
-                  className={`px-3 py-3 ${
-                    selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
-                  }`}
+                  className={`px-3 py-3 ${selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
+                    }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {zone}
@@ -444,9 +507,8 @@ export default function AngleNodeScreen() {
                     setSelectedStatus(status);
                     setStatusOpen(false);
                   }}
-                  className={`px-3 py-3 ${
-                    selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
-                  }`}
+                  className={`px-3 py-3 ${selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
+                    }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {status}
@@ -493,10 +555,7 @@ export default function AngleNodeScreen() {
 
               const gatewaySerial = getGatewaySerial(item);
 
-              const location =
-                item.installedLocation && String(item.installedLocation).trim()
-                  ? item.installedLocation
-                  : "위치 정보 없음";
+              const location = formatLocation(item.installedLocation);
 
               return (
                 <Pressable

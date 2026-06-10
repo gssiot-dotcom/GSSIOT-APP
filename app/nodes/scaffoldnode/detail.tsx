@@ -141,33 +141,118 @@ export default function ScaffoldNodeDetailScreen() {
   const statusColor = isOffline
     ? "bg-[#6B7280]"
     : isOpen
-    ? "bg-[#B91C1C]"
-    : "bg-[#1E2F5C]";
+      ? "bg-[#B91C1C]"
+      : "bg-[#1E2F5C]";
 
   const statusTextColor = isOffline
     ? "text-[#6B7280]"
     : isOpen
-    ? "text-[#B91C1C]"
-    : "text-[#1E2F5C]";
+      ? "text-[#B91C1C]"
+      : "text-[#1E2F5C]";
 
   const statusChipBg = isOffline
     ? "bg-[#E5E7EB]"
     : isOpen
-    ? "bg-[#FEE2E2]"
-    : "bg-[#EEF1FF]";
+      ? "bg-[#FEE2E2]"
+      : "bg-[#EEF1FF]";
+
+  const formatLocation = (value: any) => {
+    if (!value) return "위치정보없음";
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : "위치정보없음";
+    }
+
+    if (typeof value === "object") {
+      const rawX = value.xPercent ?? value.x_percent ?? value.x;
+      const rawY = value.yPercent ?? value.y_percent ?? value.y;
+
+      if (
+        rawX === undefined ||
+        rawX === null ||
+        rawX === "" ||
+        rawY === undefined ||
+        rawY === null ||
+        rawY === ""
+      ) {
+        return "위치정보없음";
+      }
+
+      const x = Number(rawX);
+      const y = Number(rawY);
+
+      if (Number.isNaN(x) || Number.isNaN(y)) {
+        return "위치정보없음";
+      }
+
+      if (x === 0 && y === 0) {
+        return "위치정보없음";
+      }
+
+      return `X:${x.toFixed(1)}% Y:${y.toFixed(1)}%`;
+    }
+
+    return "위치정보없음";
+  };
+
+  const formatDateTime = (value: any) => {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+
+    return date.toLocaleString("ko-KR", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
+
+  const formatRelativeTime = (value: any) => {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+
+    const diffMs = Date.now() - date.getTime();
+
+    if (diffMs < 0) {
+      return formatDateTime(value);
+    }
+
+    const diffMin = Math.floor(diffMs / 1000 / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffMin < 1) return "방금 전";
+    if (diffMin < 60) return `${diffMin}분 전`;
+    if (diffHour < 24) return `${diffHour}시간 전`;
+
+    return `${diffDay}일 전`;
+  };
 
   const battery = node?.batteryLevel ?? 0;
-  const position = node?.installedLocation || "위치 정보 없음";
+  const position = formatLocation(node?.installedLocation ?? node?.position);
   const doorNum = node?.number || "-";
+
+  const lastSeenText = formatRelativeTime(node?.lastSeenAt);
+  const updatedText = formatRelativeTime(node?.updatedAt);
+  const createdText = formatDateTime(node?.createdAt);
 
   const gatewaySerial =
     gateway?.serialNumber ||
     gateway?.gatewaySerialNumber ||
     gateway?.serial_number ||
     "-";
-
-  const gatewayStatus = gateway?.gatewayStatus || gateway?.status || "-";
-  const gatewayAlive = String(gatewayStatus).toLowerCase() !== "offline";
 
   if (loading) {
     return (
@@ -311,33 +396,49 @@ export default function ScaffoldNodeDetailScreen() {
               </View>
 
               <View className="flex-row gap-3">
-                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                  <Text className="text-gray-500 text-xs font-bold mb-1">
-                    도어 번호
-                  </Text>
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-3 py-4">
+                  <View className="flex-row items-center mb-1">
+                    <Ionicons name="radio-outline" size={14} color="#6B7280" />
 
-                  <Text className="text-[#1E263D] text-xl font-black">
-                    {doorNum}
-                  </Text>
-                </View>
+                    <Text className="text-gray-500 text-xs font-bold ml-1">
+                      최근 통신
+                    </Text>
+                  </View>
 
-                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                  <Text className="text-gray-500 text-xs font-bold mb-1">
-                    상태값
-                  </Text>
-
-                  <Text className="text-[#D9332A] text-xl font-black">
-                    {node?.doorState ?? "-"}
+                  <Text className="text-[#1E263D] text-base font-black">
+                    {lastSeenText}
                   </Text>
                 </View>
 
-                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-4 py-4">
-                  <Text className="text-gray-500 text-xs font-bold mb-1">
-                    게이트웨이 상태
-                  </Text>
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-3 py-4">
+                  <View className="flex-row items-center mb-1">
+                    <Ionicons name="sync-outline" size={14} color="#6B7280" />
 
-                  <Text className="text-[#1E263D] text-xl font-black">
-                    {gatewayAlive ? "On" : "Off"}
+                    <Text className="text-gray-500 text-xs font-bold ml-1">
+                      상태 갱신
+                    </Text>
+                  </View>
+
+                  <Text className="text-[#1E263D] text-base font-black">
+                    {updatedText}
+                  </Text>
+                </View>
+
+                <View className="flex-1 bg-[#F6F7FA] rounded-2xl px-3 py-4">
+                  <View className="flex-row items-center mb-1">
+                    <Ionicons
+                      name="calendar-outline"
+                      size={14}
+                      color="#6B7280"
+                    />
+
+                    <Text className="text-gray-500 text-xs font-bold ml-1">
+                      등록일
+                    </Text>
+                  </View>
+
+                  <Text className="text-[#1E263D] text-base font-black">
+                    {createdText}
                   </Text>
                 </View>
               </View>

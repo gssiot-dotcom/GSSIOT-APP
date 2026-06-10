@@ -18,7 +18,7 @@ import { useRealtimeRoom } from "../../../hooks/useRealtime";
 
 const COLUMN_COUNT = 3;
 
-const statusOptions = ["전체상태", "주의", "경고", "위험", "비활성"];
+const statusOptions = ["전체상태", "정상", "주의", "경고", "위험", "비활성"];
 
 const getNumber = (...values: any[]) => {
   for (const value of values) {
@@ -59,7 +59,9 @@ const getGateway = (node: any) =>
 
 const getZoneName = (node: any) =>
   getGateway(node)?.serialNumber ||
+  getGateway(node)?.gatewaySerialNumber ||
   getGateway(node)?.serial_number ||
+  getGateway(node)?.gateway_serial_number ||
   "구역 없음";
 
 const getGatewaySerial = (node: any) =>
@@ -70,19 +72,29 @@ const getGatewaySerial = (node: any) =>
   "-";
 
 const getLocation = (node: any) => {
-  if (node?.installedLocation && String(node.installedLocation).trim() !== "") {
-    return node.installedLocation;
+  const value = node?.installedLocation || node?.position || node?.floor;
+
+  if (!value) return "위치 정보 없음";
+
+  if (typeof value === "string") {
+    return value.trim() ? value : "위치 정보 없음";
   }
 
-  if (node?.position && String(node.position).trim() !== "") {
-    return node.position;
+  if (typeof value === "number") {
+    return String(value);
   }
 
-  if (node?.floor && String(node.floor).trim() !== "") {
-    return node.floor;
+  if (typeof value === "object") {
+    if (value.xPercent !== undefined && value.yPercent !== undefined) {
+      return `X ${Number(value.xPercent).toFixed(1)}%, Y ${Number(
+        value.yPercent
+      ).toFixed(1)}%`;
+    }
+
+    return "위치 정보 있음";
   }
 
-  return "위치 정보 없음";
+  return String(value);
 };
 
 const getStatusInfo = (
@@ -163,8 +175,8 @@ const getNodeStatusLabel = (node: any, alarmLevel: any) => {
 };
 
 const formatValue = (value: number) => {
-  if (value > 0) return `+${value.toFixed(1)}`;
-  return value.toFixed(1);
+  const text = value.toFixed(1).replace(".0", "");
+  return value > 0 ? `+${text}` : text;
 };
 
 const getActiveDirection = (x: number, y: number) => {
@@ -334,6 +346,10 @@ export default function VerticalNodeScreen() {
     ),
   ];
 
+  const inactiveCount = verticalNodes.filter(
+    (node) => getNodeStatusLabel(node, alarmLevel) === "비활성"
+  ).length;
+
   const filteredNodes = verticalNodes
     .filter((node) => {
       const zone = getZoneName(node);
@@ -359,10 +375,6 @@ export default function VerticalNodeScreen() {
       return bAlarm - aAlarm;
     });
 
-  const inactiveCount = verticalNodes.filter(
-    (node) => String(node.status).toLowerCase() === "offline"
-  ).length;
-
   const paddedNodes = [
     ...filteredNodes,
     ...Array.from(
@@ -383,16 +395,25 @@ export default function VerticalNodeScreen() {
       <View className="flex-1 bg-[#EDEDED]">
         <HeaderLogo />
 
-        <View className="bg-white px-4 py-4 border-b border-gray-300 z-10">
+        <View className="bg-white px-5 pt-2 pb-3 z-10 border-b border-[#EEF2F7]">
           <View className="flex-row justify-between items-center">
             <View className="flex-1 mr-2">
-              <Text className="text-lg font-black text-[#1E263D]">
-                폼 변형 감시 시스템
+              <Text className="text-[18px] font-black text-[#111827]">
+                폼 변형 감지 시스템
               </Text>
 
-              <Text className="text-xs text-gray-500 mt-1">
-                {siteName || "건물"}
-              </Text>
+              <View className="flex-row items-center mt-1">
+                <Text
+                  className="text-[12px] text-[#64748B] font-semibold"
+                  numberOfLines={1}
+                >
+                  {siteName || "건물"}
+                </Text>
+
+                <Text className="text-[12px] text-[#94A3B8] font-bold ml-2">
+                  · 총 {verticalNodes.length}개
+                </Text>
+              </View>
             </View>
 
             <View className="flex-row items-center gap-2">
@@ -402,13 +423,13 @@ export default function VerticalNodeScreen() {
                   setZoneOpen(!zoneOpen);
                   setStatusOpen(false);
                 }}
-                className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
+                className="bg-[#EEF4FF] border border-[#DCEAFF] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
-                <Text className="text-white text-xs font-bold">
+                <Text className="text-[#1E2F5C] text-xs font-black">
                   {selectedZone}
                 </Text>
 
-                <Ionicons name="chevron-down" size={14} color="white" />
+                <Ionicons name="chevron-down" size={14} color="#1E2F5C" />
               </Pressable>
 
               <Pressable
@@ -417,9 +438,9 @@ export default function VerticalNodeScreen() {
                   setStatusOpen(!statusOpen);
                   setZoneOpen(false);
                 }}
-                className="bg-[#29306B] px-3 py-2 rounded-full flex-row items-center gap-1"
+                className="bg-[#111827] px-3 py-2 rounded-full flex-row items-center gap-1"
               >
-                <Text className="text-white text-xs font-bold">
+                <Text className="text-white text-xs font-black">
                   {selectedStatus}
                 </Text>
 
@@ -428,51 +449,67 @@ export default function VerticalNodeScreen() {
             </View>
           </View>
 
-          <View className="flex-row mt-4 justify-between">
+          <View className="flex-row mt-3 justify-between">
             {[
               {
                 label: "정상",
-                value: `${alarmLevel?.blue ?? 0.5} 이하`,
-                color: "bg-[#4F63F6]",
+                value: `${alarmLevel?.green ?? 0.5} 미만`,
+                color: "bg-[#3B82F6]",
+                bg: "bg-[#EFF6FF]",
+                text: "text-[#2563EB]",
               },
               {
                 label: "주의",
                 value: `${alarmLevel?.green ?? 0.5}`,
-                color: "bg-[#6FE24B]",
+                color: "bg-[#22C55E]",
+                bg: "bg-[#F0FDF4]",
+                text: "text-[#15803D]",
               },
               {
                 label: "경고",
                 value: `${alarmLevel?.yellow ?? 1}`,
-                color: "bg-[#EFE33C]",
+                color: "bg-[#FACC15]",
+                bg: "bg-[#FEFCE8]",
+                text: "text-[#A16207]",
               },
               {
                 label: "위험",
                 value: `${alarmLevel?.red ?? 2}`,
-                color: "bg-[#D9332A]",
+                color: "bg-[#EF4444]",
+                bg: "bg-[#FEF2F2]",
+                text: "text-[#DC2626]",
               },
               {
                 label: "비활성",
-                value: `${inactiveCount}`,
-                color: "bg-[#9CA3AF]",
+                value: `${inactiveCount}개`,
+                color: "bg-[#94A3B8]",
+                bg: "bg-[#F1F5F9]",
+                text: "text-[#64748B]",
               },
             ].map((item) => (
-              <View key={item.label} className="items-center">
+              <View
+                key={item.label}
+                className={`rounded-2xl px-2 py-2 items-center ${item.bg}`}
+                style={{ width: "19%" }}
+              >
                 <View className="flex-row items-center mb-1">
-                  <View className={`w-3 h-3 rounded-full ${item.color} mr-1`} />
+                  <View className={`w-2 h-2 rounded-full ${item.color} mr-1`} />
 
-                  <Text className="text-xs text-[#1E263D]">{item.label}</Text>
+                  <Text className={`text-[10px] font-black ${item.text}`}>
+                    {item.label}
+                  </Text>
                 </View>
 
-                <View className="bg-white border border-gray-300 rounded-md px-3 py-1">
-                  <Text className="text-xs text-[#1E263D]">{item.value}</Text>
-                </View>
+                <Text className={`text-[12px] font-black ${item.text}`}>
+                  {item.value}
+                </Text>
               </View>
             ))}
           </View>
         </View>
 
         {zoneOpen && (
-          <View className="absolute top-[150px] right-[106px] w-36 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
+          <View className="absolute top-[150px] right-[92px] w-36 max-h-64 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden z-50 elevation-50">
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
               {zones.map((zone) => (
                 <Pressable
@@ -528,7 +565,7 @@ export default function VerticalNodeScreen() {
             data={paddedNodes}
             keyExtractor={(item: any) => String(item._id)}
             numColumns={COLUMN_COUNT}
-            className="flex-1 px-1 mt-5 z-0"
+            className="flex-1 px-4 mt-5"
             contentContainerStyle={{ paddingBottom: 120 }}
             columnWrapperStyle={{ justifyContent: "space-between" }}
             showsVerticalScrollIndicator={false}
@@ -558,7 +595,7 @@ export default function VerticalNodeScreen() {
 
               return (
                 <Pressable
-                  className="w-[32.5%] mb-4"
+                  className="w-[31.5%] mb-4"
                   onPress={(e) => {
                     e.stopPropagation();
 
@@ -584,7 +621,7 @@ export default function VerticalNodeScreen() {
                   }}
                 >
                   <View
-                    className={`h-42 rounded-2xl border ${style.border} ${style.bg} overflow-hidden shadow-md`}
+                    className={`h-42 rounded-2xl shadow-md overflow-hidden border ${style.border} ${style.bg}`}
                   >
                     <View className={`h-2 ${style.bar}`} />
 
@@ -667,15 +704,15 @@ export default function VerticalNodeScreen() {
                         />
                       </View>
 
-                      <View className="flex-row justify-between mb-2 gap-1 -ml-2">
-                        <View className="w-[52%] bg-white/70 rounded-xl px-1 py-2">
-                          <Text className="text-[#1E263D] text-[11px] font-black">
+                      <View className="flex-row justify-between mb-2 gap-1">
+                        <View className="flex-1 bg-white/70 rounded-md px-1 py-0.5">
+                          <Text className="text-[#1E263D] text-[10px] font-black text-center">
                             X: {formatValue(x)}
                           </Text>
                         </View>
 
-                        <View className="w-[52%] bg-white/70 rounded-xl px-1 py-2">
-                          <Text className="text-[#1E263D] text-[11px] font-black">
+                        <View className="flex-1 bg-white/70 rounded-md px-1 py-0.5">
+                          <Text className="text-[#1E263D] text-[10px] font-black text-center">
                             Y: {formatValue(y)}
                           </Text>
                         </View>
@@ -703,7 +740,7 @@ export default function VerticalNodeScreen() {
             ListEmptyComponent={
               <View className="items-center mt-20">
                 <Text className="text-gray-500">
-                  선택한 조건의 수직노드가 없습니다
+                  등록된 수직노드가 없습니다
                 </Text>
               </View>
             }

@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   RefreshControl,
   ScrollView,
   Text,
@@ -12,6 +13,25 @@ import {
 
 import { getCompaniesApi } from "../../api/companies";
 import HeaderLogo from "../../components/common/HeaderLogo";
+
+const S3_ASSET_BASE_URL = process.env.EXPO_PUBLIC_S3_ASSET_BASE_URL;
+
+const getAssetUrl = (key?: string | null) => {
+  if (!key) return "";
+
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+
+  const normalizedKey = key.replace(/^\/+/, "");
+
+  const encodedKey = normalizedKey
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+
+  return `${S3_ASSET_BASE_URL}/${encodedKey}`;
+};
 
 export default function CompaniesScreen() {
   const [companies, setCompanies] = useState<any[]>([]);
@@ -35,8 +55,6 @@ export default function CompaniesScreen() {
 
       const result = await getCompaniesApi();
 
-      console.log("companies result:", result);
-
       const companyList = result.data?.companies || result.companies || [];
 
       setCompanies(Array.isArray(companyList) ? companyList : []);
@@ -53,7 +71,6 @@ export default function CompaniesScreen() {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-
       await Promise.all([fetchUser(), fetchCompanies(true)]);
     } finally {
       setRefreshing(false);
@@ -66,16 +83,30 @@ export default function CompaniesScreen() {
   }, []);
 
   return (
-    <View className="flex-1 bg-[#EDEDED]">
+    <View className="flex-1 bg-[#F6F8FB]">
       <HeaderLogo />
 
-      <View className="bg-white px-4 py-4 border-b border-gray-300">
-        <Text className="text-lg font-black text-gray-900">건설사 목록</Text>
+      <View className="px-5 pt-3 pb-3 bg-white">
+        <View className="flex-row items-end justify-between mt-1">
+          <View>
+            <Text className="text-[20px] font-black text-[#111827]">
+              건설사 목록
+            </Text>
 
-        <Text className="text-xs text-gray-500 mt-1">
-          {user?.name || "-"} ({user?.userType || "-"})
-        </Text>
+            <Text className="text-[12px] font-semibold text-[#64748B] mt-1">
+              {user?.name || "-"} · {user?.userType || "-"}
+            </Text>
+          </View>
+
+          <View className="bg-white rounded-full px-4 py-2 border border-[#E8EDF5]">
+            <Text className="text-[12px] font-black text-[#1E2F5C]">
+              총 {companies.length}개
+            </Text>
+          </View>
+        </View>
       </View>
+
+
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
@@ -85,8 +116,9 @@ export default function CompaniesScreen() {
         <ScrollView
           className="flex-1"
           contentContainerStyle={{
-            padding: 12,
-            paddingBottom: 24,
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 28,
           }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -103,22 +135,25 @@ export default function CompaniesScreen() {
               const company = item.company || item;
 
               const companyId = company._id || company.id;
-
               const companyName = company.companyName || "이름 없음";
-
               const companyAddress = company.companyAddress || "-";
-
               const companyLogo = company.companyLogo || "";
+              const companyLogoUri = getAssetUrl(companyLogo);
 
               const buildingCount = item.companyStatistics?.buildingsCount || 0;
 
               return (
                 <TouchableOpacity
                   key={companyId}
-                  activeOpacity={0.85}
-                  className="bg-white rounded-2xl border border-blue-200 p-4 mb-4"
+                  activeOpacity={0.9}
+                  className="bg-white rounded-[28px] mb-4 border border-[#EEF2F7] overflow-hidden"
                   style={{
                     width: "48%",
+                    shadowColor: "#0F172A",
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 12,
+                    elevation: 2,
                   }}
                   onPress={() =>
                     router.push({
@@ -131,39 +166,55 @@ export default function CompaniesScreen() {
                     } as any)
                   }
                 >
-                  <Text
-                    className="text-sm font-black text-gray-800 mb-4"
-                    numberOfLines={1}
-                  >
-                    {companyName}
-                  </Text>
+                  <View className="p-4">
+                    <View className="flex-row items-center justify-between mb-5">
+                      <View className="w-14 h-14 rounded-2xl bg-[#F8FAFC] border border-[#EEF2F7] items-center justify-center overflow-hidden">
+                        {companyLogoUri ? (
+                          <Image
+                            source={{ uri: companyLogoUri }}
+                            className="w-full h-full"
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Text className="text-[10px] text-[#A0AEC0] font-black">
+                            LOGO
+                          </Text>
+                        )}
+                      </View>
 
-                  <View className="flex-row items-center justify-between mb-3">
-                    <Text className="text-xs text-gray-600">총 건물</Text>
-
-                    <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center">
-                      <Text className="text-sm font-bold text-blue-600">
-                        {buildingCount}
-                      </Text>
+                      <View className="bg-[#EEF4FF] rounded-full px-3 py-1 border border-[#DCEAFF]">
+                        <Text className="text-[11px] font-black text-[#1E2F5C]">
+                          {buildingCount}개
+                        </Text>
+                      </View>
                     </View>
-                  </View>
 
-                  <View className="flex-row items-center justify-between mb-5">
-                    <Text className="text-xs text-gray-600">주소</Text>
+                    <Text
+                      className="text-[16px] font-black text-[#111827] leading-5 mb-2"
+                      numberOfLines={2}
+                    >
+                      {companyName}
+                    </Text>
 
-                    <View className="bg-blue-600 rounded-full px-3 py-1 max-w-[70%]">
-                      <Text
-                        className="text-[11px] font-bold text-white"
-                        numberOfLines={1}
-                      >
-                        {companyAddress}
+                    <Text
+                      className="text-[11px] text-[#64748B] font-semibold leading-4 mb-5"
+                      numberOfLines={2}
+                    >
+                      {companyAddress}
+                    </Text>
+
+                    <View className="h-[1px] bg-[#F1F5F9] mb-3" />
+
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-[12px] font-bold text-[#64748B]">
+                        건물 보기
                       </Text>
-                    </View>
-                  </View>
 
-                  <View className="items-start">
-                    <View className="bg-gray-100 rounded-lg px-4 py-2">
-                      <Text className="text-xs text-gray-600">건물 보기 →</Text>
+                      <View className="w-7 h-7 rounded-full bg-[#111827] items-center justify-center">
+                        <Text className="text-white text-base font-black">
+                          →
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -173,7 +224,7 @@ export default function CompaniesScreen() {
 
           {!companies.length && (
             <View className="items-center mt-20">
-              <Text className="text-gray-500">등록된 회사가 없습니다.</Text>
+              <Text className="text-[#64748B]">등록된 회사가 없습니다.</Text>
             </View>
           )}
         </ScrollView>
