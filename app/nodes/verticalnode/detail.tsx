@@ -8,11 +8,15 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Switch,
   Text,
   View,
 } from "react-native";
 
-import { getBuildingNodesApi } from "../../../api/nodes";
+import {
+  getBuildingNodesApi,
+  updateNodeAlarmFilterApi,
+} from "../../../api/nodes";
 import HeaderLogo from "../../../components/common/HeaderLogo";
 import ImageZoomModal from "../../../components/common/ImageZoomModal";
 import { useRealtimeRoom } from "../../../hooks/useRealtime";
@@ -102,6 +106,9 @@ export default function VerticalNodeDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [alarmMuted, setAlarmMuted] = useState(false);
+  const [alarmUpdating, setAlarmUpdating] = useState(false);
+
   const [zoomVisible, setZoomVisible] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(0);
 
@@ -141,6 +148,13 @@ export default function VerticalNodeDetailScreen() {
       const buildingAlarmLevel =
         result.data?.buildingAlarmLevel || result.buildingAlarmLevel || null;
 
+      const gatewayAlarmSettings =
+        result.data?.gatewayAlarmSettings ||
+        result.gatewayAlarmSettings ||
+        result.data?.buildingAlarmLevel?.gatewayAlarmSettings ||
+        result.buildingAlarmLevel?.gatewayAlarmSettings ||
+        [];
+
       setAlarmLevel(buildingAlarmLevel);
 
       const foundNode = nodes.find(
@@ -153,13 +167,43 @@ export default function VerticalNodeDetailScreen() {
       }
 
       const nodeGatewayId =
+        foundNode.gateway?._id ||
+        foundNode.gateway?.id ||
         foundNode.gatewayId?._id ||
+        foundNode.gatewayId?.id ||
         foundNode.gatewayId ||
         foundNode.gateway_id?._id ||
+        foundNode.gateway_id?.id ||
         foundNode.gateway_id;
 
       const foundGateway = gateways.find(
         (item: any) => String(item._id || item.id) === String(nodeGatewayId)
+      );
+
+      const gatewayId = foundGateway?._id || foundGateway?.id || nodeGatewayId;
+
+      const setting = Array.isArray(gatewayAlarmSettings)
+        ? gatewayAlarmSettings.find((item: any) => {
+          const settingGatewayId =
+            item.gatewayId?._id ||
+            item.gatewayId?.id ||
+            item.gatewayId ||
+            item.gateway?._id ||
+            item.gateway?.id ||
+            item.gateway ||
+            item._id ||
+            item.id;
+
+          return String(settingGatewayId) === String(gatewayId);
+        })
+        : null;
+
+      const mutedNodes = setting?.vertical?.faultFilterNodes || [];
+
+      setAlarmMuted(
+        Array.isArray(mutedNodes)
+          ? mutedNodes.map(String).includes(String(foundNode.number))
+          : false
       );
 
       const initialX =
@@ -186,6 +230,53 @@ export default function VerticalNodeDetailScreen() {
       if (!isRefresh) {
         setLoading(false);
       }
+    }
+  };
+
+  const handleToggleAlarmMuted = async () => {
+    if (!buildingId || !node || alarmUpdating) return;
+
+    const gatewayId =
+      gateway?._id ||
+      gateway?.id ||
+      node.gateway?._id ||
+      node.gateway?.id ||
+      node.gatewayId?._id ||
+      node.gatewayId?.id ||
+      node.gatewayId ||
+      node.gateway_id?._id ||
+      node.gateway_id?.id ||
+      node.gateway_id;
+
+    const nodeNumber = Number(node.number);
+
+    if (!gatewayId || Number.isNaN(nodeNumber)) {
+      alert("게이트웨이 또는 노드 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    const nextValue = !alarmMuted;
+
+    try {
+      setAlarmUpdating(true);
+      setAlarmMuted(nextValue);
+
+      await updateNodeAlarmFilterApi({
+        buildingId: String(buildingId),
+        gatewayId: String(gatewayId),
+        alarmType: "gangform_node",
+        nodeNumber,
+        enabled: nextValue,
+      });
+    } catch (error: any) {
+      console.log("alarm filter status:", error?.response?.status);
+      console.log("alarm filter data:", error?.response?.data);
+      console.log("alarm filter message:", error?.message);
+
+      setAlarmMuted(!nextValue);
+      alert("알람 설정 변경에 실패했습니다.");
+    } finally {
+      setAlarmUpdating(false);
     }
   };
 
@@ -221,9 +312,16 @@ export default function VerticalNodeDetailScreen() {
 
         const payloadNodeId = payload.nodeId ?? payload._id;
 
+        const currentNodeNumber =
+          prev.number ??
+          prev.nodeNumber ??
+          prev.node_number ??
+          prev.nodeNum ??
+          prev.doorNum;
+
         const isSameNode =
           String(prev._id) === String(payloadNodeId) ||
-          String(prev.number) === String(payloadNumber);
+          String(currentNodeNumber) === String(payloadNumber);
 
         if (!isSameNode) return prev;
 
@@ -381,10 +479,40 @@ export default function VerticalNodeDetailScreen() {
                   </Text>
                 </View>
 
-                <View className={`${statusInfo.chipBg} px-4 py-2 rounded-full`}>
-                  <Text className={`${statusInfo.textColor} text-sm font-black`}>
-                    {statusInfo.label}
-                  </Text>
+                <View className="flex-row items-center gap-2">
+                  <View
+                    className={`${statusInfo.chipBg} px-4 py-2 rounded-full`}
+                  >
+                    <Text
+                      className={`${statusInfo.textColor} text-sm font-black`}
+                    >
+                      {statusInfo.label}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    disabled={alarmUpdating}
+                    onPress={handleToggleAlarmMuted}
+                    className={`px-3 py-1.5 rounded-full border ${alarmMuted
+                      ? "bg-[#FFF4E5] border-[#FDBA74]"
+                      : "bg-[#EEF4FF] border-[#DCEAFF]"
+                      } ${alarmUpdating ? "opacity-50" : "opacity-100"}`}
+                  >
+                    <View className="flex-row items-center">
+                      <Ionicons
+                        name={alarmMuted ? "notifications-off" : "notifications"}
+                        size={13}
+                        color={alarmMuted ? "#F59E0B" : "#1E2F5C"}
+                      />
+
+                      <Text
+                        className={`text-xs font-black ml-1 ${alarmMuted ? "text-[#F59E0B]" : "text-[#1E2F5C]"
+                          }`}
+                      >
+                        {alarmMuted ? "알람OFF" : "알람ON"}
+                      </Text>
+                    </View>
+                  </Pressable>
                 </View>
               </View>
 
@@ -471,9 +599,8 @@ export default function VerticalNodeDetailScreen() {
 
                   <View className="flex-row items-center">
                     <View
-                      className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                        isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
-                      }`}
+                      className={`w-2.5 h-2.5 rounded-full mr-2 ${isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
+                        }`}
                     />
 
                     <Text className="text-[#1E263D] text-base font-black">

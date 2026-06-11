@@ -11,7 +11,10 @@ import {
   View,
 } from "react-native";
 
-import { getBuildingNodesApi } from "../../../api/nodes";
+import {
+  getBuildingNodesApi,
+  updateNodeAlarmFilterApi,
+} from "../../../api/nodes";
 import HeaderLogo from "../../../components/common/HeaderLogo";
 import { useRealtimeRoom } from "../../../hooks/useRealtime";
 
@@ -68,6 +71,24 @@ const getStatusInfo = (
   };
 };
 
+const getNodeNumber = (node: any) =>
+  node?.number ??
+  node?.nodeNumber ??
+  node?.node_number ??
+  node?.nodeNum ??
+  node?.doorNum ??
+  "-";
+
+const getNodeGatewayId = (node: any) =>
+  node?.gateway?._id ||
+  node?.gateway?.id ||
+  node?.gatewayId?._id ||
+  node?.gatewayId?.id ||
+  node?.gatewayId ||
+  node?.gateway_id?._id ||
+  node?.gateway_id?.id ||
+  node?.gateway_id;
+
 export default function AngleNodeDetailScreen() {
   const {
     nodeId,
@@ -83,6 +104,9 @@ export default function AngleNodeDetailScreen() {
   const [alarmLevel, setAlarmLevel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [alarmMuted, setAlarmMuted] = useState(false);
+  const [alarmUpdating, setAlarmUpdating] = useState(false);
 
   const fetchDetail = async (isRefresh = false) => {
     try {
@@ -109,18 +133,54 @@ export default function AngleNodeDetailScreen() {
       const buildingAlarmLevel =
         result.data?.buildingAlarmLevel || result.buildingAlarmLevel || null;
 
+      const gatewayAlarmSettings =
+        result.data?.gatewayAlarmSettings ||
+        result.gatewayAlarmSettings ||
+        result.data?.buildingAlarmLevel?.gatewayAlarmSettings ||
+        result.buildingAlarmLevel?.gatewayAlarmSettings ||
+        [];
+
       const foundNode = nodes.find(
         (item: any) => String(item._id) === String(nodeId)
       );
 
-      const nodeGatewayId =
-        foundNode?.gatewayId?._id ||
-        foundNode?.gatewayId ||
-        foundNode?.gateway_id?._id ||
-        foundNode?.gateway_id;
+      if (!foundNode) {
+        setNode(null);
+        setGateway(null);
+        setAlarmLevel(buildingAlarmLevel);
+        setAlarmMuted(false);
+        return;
+      }
+
+      const nodeGatewayId = getNodeGatewayId(foundNode);
 
       const foundGateway = gateways.find(
         (item: any) => String(item._id || item.id) === String(nodeGatewayId)
+      );
+
+      const gatewayId = foundGateway?._id || foundGateway?.id || nodeGatewayId;
+
+      const setting = Array.isArray(gatewayAlarmSettings)
+        ? gatewayAlarmSettings.find((item: any) => {
+            const settingGatewayId =
+              item.gatewayId?._id ||
+              item.gatewayId?.id ||
+              item.gatewayId ||
+              item.gateway?._id ||
+              item.gateway?.id ||
+              item.gateway;
+
+            return String(settingGatewayId) === String(gatewayId);
+          })
+        : null;
+
+      const mutedNodes = setting?.angle?.faultFilterNodes || [];
+      const foundNodeNumber = getNodeNumber(foundNode);
+
+      setAlarmMuted(
+        Array.isArray(mutedNodes)
+          ? mutedNodes.map(String).includes(String(foundNodeNumber))
+          : false
       );
 
       const initialAxisX =
@@ -133,15 +193,11 @@ export default function AngleNodeDetailScreen() {
           ? Number(paramAxisY)
           : undefined;
 
-      setNode(
-        foundNode
-          ? {
-            ...foundNode,
-            angleX: initialAxisX ?? foundNode.angleX,
-            angleY: initialAxisY ?? foundNode.angleY,
-          }
-          : null
-      );
+      setNode({
+        ...foundNode,
+        angleX: initialAxisX ?? foundNode.angleX,
+        angleY: initialAxisY ?? foundNode.angleY,
+      });
 
       setGateway(foundGateway || null);
       setAlarmLevel(buildingAlarmLevel);
@@ -152,6 +208,44 @@ export default function AngleNodeDetailScreen() {
       if (!isRefresh) {
         setLoading(false);
       }
+    }
+  };
+
+  const handleToggleAlarmMuted = async () => {
+    if (!buildingId || !node || alarmUpdating) return;
+
+    const gatewayId =
+      gateway?._id || gateway?.id || getNodeGatewayId(node);
+
+    const nodeNumber = Number(getNodeNumber(node));
+
+    if (!gatewayId || Number.isNaN(nodeNumber)) {
+      alert("게이트웨이 또는 노드 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    const nextValue = !alarmMuted;
+
+    try {
+      setAlarmUpdating(true);
+      setAlarmMuted(nextValue);
+
+      await updateNodeAlarmFilterApi({
+        buildingId: String(buildingId),
+        gatewayId: String(gatewayId),
+        alarmType: "angle_node",
+        nodeNumber,
+        enabled: nextValue,
+      });
+    } catch (error: any) {
+      console.log("angle alarm filter status:", error?.response?.status);
+      console.log("angle alarm filter data:", error?.response?.data);
+      console.log("angle alarm filter message:", error?.message);
+
+      setAlarmMuted(!nextValue);
+      alert("알람 설정 변경에 실패했습니다.");
+    } finally {
+      setAlarmUpdating(false);
     }
   };
 
@@ -187,9 +281,16 @@ export default function AngleNodeDetailScreen() {
 
         const payloadNodeId = payload.nodeId ?? payload._id;
 
+        const currentNodeNumber =
+          prev.number ??
+          prev.nodeNumber ??
+          prev.node_number ??
+          prev.nodeNum ??
+          prev.doorNum;
+
         const isSameNode =
           String(prev._id) === String(payloadNodeId) ||
-          String(prev.number) === String(payloadNumber);
+          String(currentNodeNumber) === String(payloadNumber);
 
         if (!isSameNode) return prev;
 
@@ -218,25 +319,25 @@ export default function AngleNodeDetailScreen() {
 
   const axisX = Number(
     node?.angleX ??
-    node?.calibratedX ??
-    node?.angle_x ??
-    node?.calibrated_x ??
-    0
+      node?.calibratedX ??
+      node?.angle_x ??
+      node?.calibrated_x ??
+      0
   );
 
   const axisY = Number(
     node?.angleY ??
-    node?.calibratedY ??
-    node?.angle_y ??
-    node?.calibrated_y ??
-    0
+      node?.calibratedY ??
+      node?.angle_y ??
+      node?.calibrated_y ??
+      0
   );
 
   const isOffline = String(node?.status).toLowerCase() === "offline";
   const maxAlarm = Math.max(Math.abs(axisX), Math.abs(axisY));
   const status = getStatusInfo(maxAlarm, alarmLevel, isOffline);
 
-  const nodeNumber = node?.number ?? "-";
+  const nodeNumber = getNodeNumber(node);
 
   const gatewaySerial =
     gateway?.serialNumber ||
@@ -298,7 +399,6 @@ export default function AngleNodeDetailScreen() {
     );
   }
 
-
   return (
     <View className="flex-1 bg-[#EDEDED]">
       <HeaderLogo />
@@ -322,7 +422,7 @@ export default function AngleNodeDetailScreen() {
                   pathname: "/nodes/anglenode/graph",
                   params: {
                     nodeId: String(node._id),
-                    doorNum: String(node.number),
+                    doorNum: String(nodeNumber),
                     buildingId: String(buildingId),
                     companyId:
                       typeof companyId === "string" ? companyId : "",
@@ -382,10 +482,44 @@ export default function AngleNodeDetailScreen() {
                   </Text>
                 </View>
 
-                <View className={`${status.chip} px-4 py-2 rounded-full`}>
-                  <Text className={`${status.text} text-sm font-black`}>
-                    {status.label}
-                  </Text>
+                <View className="flex-row items-center gap-2">
+                  <View className={`${status.chip} px-4 py-2 rounded-full`}>
+                    <Text className={`${status.text} text-sm font-black`}>
+                      {status.label}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    disabled={alarmUpdating}
+                    onPress={handleToggleAlarmMuted}
+                    className={`px-3 py-1.5 rounded-full border ${
+                      alarmMuted
+                        ? "bg-[#FFF4E5] border-[#FDBA74]"
+                        : "bg-[#EEF4FF] border-[#DCEAFF]"
+                    } ${alarmUpdating ? "opacity-50" : "opacity-100"}`}
+                  >
+                    <View className="flex-row items-center">
+                      <Ionicons
+                        name={
+                          alarmMuted
+                            ? "notifications-off"
+                            : "notifications"
+                        }
+                        size={13}
+                        color={alarmMuted ? "#F59E0B" : "#1E2F5C"}
+                      />
+
+                      <Text
+                        className={`text-xs font-black ml-1 ${
+                          alarmMuted
+                            ? "text-[#F59E0B]"
+                            : "text-[#1E2F5C]"
+                        }`}
+                      >
+                        {alarmMuted ? "알람OFF" : "알람ON"}
+                      </Text>
+                    </View>
+                  </Pressable>
                 </View>
               </View>
 
@@ -443,8 +577,9 @@ export default function AngleNodeDetailScreen() {
 
                   <View className="flex-row items-center">
                     <View
-                      className={`w-2.5 h-2.5 rounded-full mr-2 ${isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
-                        }`}
+                      className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                        isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
+                      }`}
                     />
 
                     <Text className="text-[#1E263D] text-base font-black">

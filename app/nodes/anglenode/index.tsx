@@ -18,7 +18,7 @@ import { useRealtimeRoom } from "../../../hooks/useRealtime";
 
 const COLUMN_COUNT = 3;
 
-const statusOptions = ["전체상태", "주의", "경고", "위험", "비활성"];
+const statusOptions = ["전체상태", "정상", "주의", "경고", "위험", "비활성"];
 
 const getGatewaySerial = (node: any) =>
   node.gateway?.serialNumber || node.gateway?.serial_number || "-";
@@ -89,20 +89,23 @@ const getStatusInfo = (
 const getAngleX = (node: any) =>
   Number(
     node.angleX ??
-    node.calibratedX ??
-    node.angle_x ??
-    node.calibrated_x ??
-    0
+      node.calibratedX ??
+      node.angle_x ??
+      node.calibrated_x ??
+      0
   );
 
 const getAngleY = (node: any) =>
   Number(
     node.angleY ??
-    node.calibratedY ??
-    node.angle_y ??
-    node.calibrated_y ??
-    0
+      node.calibratedY ??
+      node.angle_y ??
+      node.calibrated_y ??
+      0
   );
+
+const getNodeNumber = (node: any) =>
+  node.number ?? node.nodeNumber ?? node.node_number ?? node.nodeNum ?? node.doorNum ?? "-";
 
 const getNodeStatusLabel = (node: any, alarmLevel: any) => {
   const axisX = getAngleX(node);
@@ -174,10 +177,9 @@ export default function AngleNodeScreen() {
           node.gateway && typeof node.gateway === "object"
             ? node.gateway
             : gatewayList.find((gw: any) => {
-              const gatewayId = gw._id || gw.id;
-
-              return String(gatewayId) === String(nodeGatewayId);
-            });
+                const gatewayId = gw._id || gw.id;
+                return String(gatewayId) === String(nodeGatewayId);
+              });
 
         return {
           ...node,
@@ -230,9 +232,16 @@ export default function AngleNodeScreen() {
 
           const payloadNodeId = payload.nodeId ?? payload._id;
 
+          const currentNodeNumber =
+            node.number ??
+            node.nodeNumber ??
+            node.node_number ??
+            node.nodeNum ??
+            node.doorNum;
+
           const isSameNode =
             String(node._id) === String(payloadNodeId) ||
-            String(node.number) === String(payloadNumber);
+            String(currentNodeNumber) === String(payloadNumber);
 
           if (!isSameNode) return node;
 
@@ -355,6 +364,7 @@ export default function AngleNodeScreen() {
 
     return "위치정보없음";
   };
+
   return (
     <TouchableWithoutFeedback onPress={closeDropdowns}>
       <View className="flex-1 bg-[#EDEDED]">
@@ -418,7 +428,7 @@ export default function AngleNodeScreen() {
             {[
               {
                 label: "정상",
-                value: `${alarmLevel?.green ?? 0.5} 미만`,
+                value: `${alarmLevel?.green ?? 1} 미만`,
                 color: "bg-[#3B82F6]",
                 bg: "bg-[#EFF6FF]",
                 text: "text-[#2563EB]",
@@ -484,8 +494,9 @@ export default function AngleNodeScreen() {
                     setSelectedZone(zone);
                     setZoneOpen(false);
                   }}
-                  className={`px-3 py-3 ${selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
-                    }`}
+                  className={`px-3 py-3 ${
+                    selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
+                  }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {zone}
@@ -507,8 +518,9 @@ export default function AngleNodeScreen() {
                     setSelectedStatus(status);
                     setStatusOpen(false);
                   }}
-                  className={`px-3 py-3 ${selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
-                    }`}
+                  className={`px-3 py-3 ${
+                    selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
+                  }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {status}
@@ -547,6 +559,7 @@ export default function AngleNodeScreen() {
 
               const axisX = getAngleX(item);
               const axisY = getAngleY(item);
+              const nodeNumber = getNodeNumber(item);
 
               const isOffline = String(item.status).toLowerCase() === "offline";
 
@@ -554,7 +567,6 @@ export default function AngleNodeScreen() {
               const status = getStatusInfo(maxAlarm, alarmLevel, isOffline);
 
               const gatewaySerial = getGatewaySerial(item);
-
               const location = formatLocation(item.installedLocation);
 
               return (
@@ -567,7 +579,7 @@ export default function AngleNodeScreen() {
                       pathname: "/nodes/anglenode/detail",
                       params: {
                         nodeId: item._id,
-                        doorNum: item.number,
+                        doorNum: String(nodeNumber),
                         axisX,
                         axisY,
                         location,
@@ -589,7 +601,7 @@ export default function AngleNodeScreen() {
                       <View className="flex-row justify-between items-start mb-2">
                         <View>
                           <Text className="text-[#1E263D] text-xs font-black">
-                            노드 {item.number}
+                            노드 {nodeNumber}
                           </Text>
 
                           <Text className="text-gray-500 text-[10px] font-bold mt-0.5">

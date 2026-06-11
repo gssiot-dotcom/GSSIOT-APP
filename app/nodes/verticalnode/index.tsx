@@ -257,10 +257,10 @@ export default function VerticalNodeScreen() {
           node.gateway && typeof node.gateway === "object"
             ? node.gateway
             : gatewayList.find((gw: any) => {
-                const gatewayId = gw._id || gw.id;
+              const gatewayId = gw._id || gw.id;
 
-                return String(gatewayId) === String(nodeGatewayId);
-              });
+              return String(gatewayId) === String(nodeGatewayId);
+            });
 
         return {
           ...node,
@@ -310,9 +310,17 @@ export default function VerticalNodeScreen() {
 
           const payloadNodeId = payload.nodeId ?? payload._id;
 
+
+          const currentNodeNumber =
+            node.number ??
+            node.nodeNumber ??
+            node.node_number ??
+            node.nodeNum ??
+            node.doorNum;
+
           const isSameNode =
             String(node._id) === String(payloadNodeId) ||
-            String(node.number) === String(payloadNumber);
+            String(currentNodeNumber) === String(payloadNumber);
 
           if (!isSameNode) return node;
 
@@ -519,9 +527,8 @@ export default function VerticalNodeScreen() {
                     setSelectedZone(zone);
                     setZoneOpen(false);
                   }}
-                  className={`px-3 py-3 ${
-                    selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
-                  }`}
+                  className={`px-3 py-3 ${selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
+                    }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {zone}
@@ -543,9 +550,8 @@ export default function VerticalNodeScreen() {
                     setSelectedStatus(status);
                     setStatusOpen(false);
                   }}
-                  className={`px-3 py-3 ${
-                    selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
-                  }`}
+                  className={`px-3 py-3 ${selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
+                    }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {status}
@@ -659,19 +665,18 @@ export default function VerticalNodeScreen() {
                             return (
                               <View
                                 key={dot.key}
-                                className={`${dot.className} w-3 h-3 rounded-full border border-gray-500 ${
-                                  isActive ? "" : "bg-white"
-                                }`}
+                                className={`${dot.className} w-3 h-3 rounded-full border border-gray-500 ${isActive ? "" : "bg-white"
+                                  }`}
                                 style={
                                   isActive
                                     ? {
-                                        backgroundColor: style.glow,
-                                        shadowColor: style.glow,
-                                        shadowOffset: { width: 0, height: 0 },
-                                        shadowOpacity: 0.7,
-                                        shadowRadius: 7,
-                                        elevation: 8,
-                                      }
+                                      backgroundColor: style.glow,
+                                      shadowColor: style.glow,
+                                      shadowOffset: { width: 0, height: 0 },
+                                      shadowOpacity: 0.7,
+                                      shadowRadius: 7,
+                                      elevation: 8,
+                                    }
                                     : undefined
                                 }
                               />
@@ -679,19 +684,18 @@ export default function VerticalNodeScreen() {
                           })}
 
                           <View
-                            className={`w-3 h-3 rounded-full border border-gray-500 ${
-                              activeDirection === "center" ? "" : "bg-white"
-                            }`}
+                            className={`w-3 h-3 rounded-full border border-gray-500 ${activeDirection === "center" ? "" : "bg-white"
+                              }`}
                             style={
                               activeDirection === "center"
                                 ? {
-                                    backgroundColor: style.glow,
-                                    shadowColor: style.glow,
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: 0.7,
-                                    shadowRadius: 7,
-                                    elevation: 8,
-                                  }
+                                  backgroundColor: style.glow,
+                                  shadowColor: style.glow,
+                                  shadowOffset: { width: 0, height: 0 },
+                                  shadowOpacity: 0.7,
+                                  shadowRadius: 7,
+                                  elevation: 8,
+                                }
                                 : undefined
                             }
                           />
