@@ -72,29 +72,13 @@ const getGatewaySerial = (node: any) =>
   "-";
 
 const getLocation = (node: any) => {
-  const value = node?.installedLocation || node?.position || node?.floor;
+  const title = node?.installedLocationTitle;
 
-  if (!value) return "위치 정보 없음";
-
-  if (typeof value === "string") {
-    return value.trim() ? value : "위치 정보 없음";
+  if (typeof title === "string" && title.trim() !== "") {
+    return title;
   }
 
-  if (typeof value === "number") {
-    return String(value);
-  }
-
-  if (typeof value === "object") {
-    if (value.xPercent !== undefined && value.yPercent !== undefined) {
-      return `X ${Number(value.xPercent).toFixed(1)}%, Y ${Number(
-        value.yPercent
-      ).toFixed(1)}%`;
-    }
-
-    return "위치 정보 있음";
-  }
-
-  return String(value);
+  return "위치 정보 없음";
 };
 
 const getStatusInfo = (
@@ -608,20 +592,18 @@ export default function VerticalNodeScreen() {
                     router.push({
                       pathname: "/nodes/verticalnode/detail",
                       params: {
-                        nodeId: item._id,
-                        nodeNumber,
-                        x,
-                        y,
-                        location,
-                        gatewaySerial,
+                        nodeId: String(item._id),
+                        nodeNumber: String(nodeNumber),
+                        x: String(x),
+                        y: String(y),
+                        location: String(location),
+                        gatewaySerial: String(gatewaySerial),
                         status: isOffline ? "offline" : "online",
-                        buildingId,
-                        companyId,
-                        siteName,
+                        buildingId: String(buildingId),
+                        companyId: typeof companyId === "string" ? companyId : "",
+                        siteName: String(siteName || ""),
                         buildingPlanImage:
-                          typeof buildingPlanImage === "string"
-                            ? buildingPlanImage
-                            : "[]",
+                          typeof buildingPlanImage === "string" ? buildingPlanImage : "[]",
                       },
                     } as any);
                   }}

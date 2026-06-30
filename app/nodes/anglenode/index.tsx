@@ -89,19 +89,19 @@ const getStatusInfo = (
 const getAngleX = (node: any) =>
   Number(
     node.angleX ??
-      node.calibratedX ??
-      node.angle_x ??
-      node.calibrated_x ??
-      0
+    node.calibratedX ??
+    node.angle_x ??
+    node.calibrated_x ??
+    0
   );
 
 const getAngleY = (node: any) =>
   Number(
     node.angleY ??
-      node.calibratedY ??
-      node.angle_y ??
-      node.calibrated_y ??
-      0
+    node.calibratedY ??
+    node.angle_y ??
+    node.calibrated_y ??
+    0
   );
 
 const getNodeNumber = (node: any) =>
@@ -177,9 +177,9 @@ export default function AngleNodeScreen() {
           node.gateway && typeof node.gateway === "object"
             ? node.gateway
             : gatewayList.find((gw: any) => {
-                const gatewayId = gw._id || gw.id;
-                return String(gatewayId) === String(nodeGatewayId);
-              });
+              const gatewayId = gw._id || gw.id;
+              return String(gatewayId) === String(nodeGatewayId);
+            });
 
         return {
           ...node,
@@ -325,41 +325,11 @@ export default function AngleNodeScreen() {
     ),
   ];
 
-  const formatLocation = (value: any) => {
-    if (!value) return "위치정보없음";
+  const formatLocation = (node: any) => {
+    const title = node?.installedLocationTitle;
 
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      return trimmed ? trimmed : "위치정보없음";
-    }
-
-    if (typeof value === "object") {
-      const rawX = value.xPercent ?? value.x_percent ?? value.x;
-      const rawY = value.yPercent ?? value.y_percent ?? value.y;
-
-      if (
-        rawX === undefined ||
-        rawX === null ||
-        rawX === "" ||
-        rawY === undefined ||
-        rawY === null ||
-        rawY === ""
-      ) {
-        return "위치정보없음";
-      }
-
-      const x = Number(rawX);
-      const y = Number(rawY);
-
-      if (Number.isNaN(x) || Number.isNaN(y)) {
-        return "위치정보없음";
-      }
-
-      if (x === 0 && y === 0) {
-        return "위치정보없음";
-      }
-
-      return `X:${x.toFixed(1)}% Y:${y.toFixed(1)}%`;
+    if (typeof title === "string" && title.trim() !== "") {
+      return title;
     }
 
     return "위치정보없음";
@@ -494,9 +464,8 @@ export default function AngleNodeScreen() {
                     setSelectedZone(zone);
                     setZoneOpen(false);
                   }}
-                  className={`px-3 py-3 ${
-                    selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
-                  }`}
+                  className={`px-3 py-3 ${selectedZone === zone ? "bg-[#EEF1FF]" : "bg-white"
+                    }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {zone}
@@ -518,9 +487,8 @@ export default function AngleNodeScreen() {
                     setSelectedStatus(status);
                     setStatusOpen(false);
                   }}
-                  className={`px-3 py-3 ${
-                    selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
-                  }`}
+                  className={`px-3 py-3 ${selectedStatus === status ? "bg-[#EEF1FF]" : "bg-white"
+                    }`}
                 >
                   <Text className="text-xs font-bold text-[#1E263D]">
                     {status}
@@ -567,7 +535,7 @@ export default function AngleNodeScreen() {
               const status = getStatusInfo(maxAlarm, alarmLevel, isOffline);
 
               const gatewaySerial = getGatewaySerial(item);
-              const location = formatLocation(item.installedLocation);
+              const location = formatLocation(item);
 
               return (
                 <Pressable

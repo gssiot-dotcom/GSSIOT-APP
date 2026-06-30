@@ -162,16 +162,16 @@ export default function AngleNodeDetailScreen() {
 
       const setting = Array.isArray(gatewayAlarmSettings)
         ? gatewayAlarmSettings.find((item: any) => {
-            const settingGatewayId =
-              item.gatewayId?._id ||
-              item.gatewayId?.id ||
-              item.gatewayId ||
-              item.gateway?._id ||
-              item.gateway?.id ||
-              item.gateway;
+          const settingGatewayId =
+            item.gatewayId?._id ||
+            item.gatewayId?.id ||
+            item.gatewayId ||
+            item.gateway?._id ||
+            item.gateway?.id ||
+            item.gateway;
 
-            return String(settingGatewayId) === String(gatewayId);
-          })
+          return String(settingGatewayId) === String(gatewayId);
+        })
         : null;
 
       const mutedNodes = setting?.angle?.faultFilterNodes || [];
@@ -319,18 +319,18 @@ export default function AngleNodeDetailScreen() {
 
   const axisX = Number(
     node?.angleX ??
-      node?.calibratedX ??
-      node?.angle_x ??
-      node?.calibrated_x ??
-      0
+    node?.calibratedX ??
+    node?.angle_x ??
+    node?.calibrated_x ??
+    0
   );
 
   const axisY = Number(
     node?.angleY ??
-      node?.calibratedY ??
-      node?.angle_y ??
-      node?.calibrated_y ??
-      0
+    node?.calibratedY ??
+    node?.angle_y ??
+    node?.calibrated_y ??
+    0
   );
 
   const isOffline = String(node?.status).toLowerCase() === "offline";
@@ -345,47 +345,17 @@ export default function AngleNodeDetailScreen() {
     gateway?.serial_number ||
     "-";
 
-  const formatLocation = (value: any) => {
-    if (!value) return "위치정보없음";
+  const formatLocation = (node: any) => {
+    const title = node?.installedLocationTitle;
 
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      return trimmed ? trimmed : "위치정보없음";
-    }
-
-    if (typeof value === "object") {
-      const rawX = value.xPercent ?? value.x_percent ?? value.x;
-      const rawY = value.yPercent ?? value.y_percent ?? value.y;
-
-      if (
-        rawX === undefined ||
-        rawX === null ||
-        rawX === "" ||
-        rawY === undefined ||
-        rawY === null ||
-        rawY === ""
-      ) {
-        return "위치정보없음";
-      }
-
-      const x = Number(rawX);
-      const y = Number(rawY);
-
-      if (Number.isNaN(x) || Number.isNaN(y)) {
-        return "위치정보없음";
-      }
-
-      if (x === 0 && y === 0) {
-        return "위치정보없음";
-      }
-
-      return `X:${x.toFixed(1)}% Y:${y.toFixed(1)}%`;
+    if (typeof title === "string" && title.trim() !== "") {
+      return title;
     }
 
     return "위치정보없음";
   };
 
-  const location = formatLocation(node?.installedLocation);
+  const location = formatLocation(node);
 
   if (loading) {
     return (
@@ -492,11 +462,10 @@ export default function AngleNodeDetailScreen() {
                   <Pressable
                     disabled={alarmUpdating}
                     onPress={handleToggleAlarmMuted}
-                    className={`px-3 py-1.5 rounded-full border ${
-                      alarmMuted
+                    className={`px-3 py-1.5 rounded-full border ${alarmMuted
                         ? "bg-[#FFF4E5] border-[#FDBA74]"
                         : "bg-[#EEF4FF] border-[#DCEAFF]"
-                    } ${alarmUpdating ? "opacity-50" : "opacity-100"}`}
+                      } ${alarmUpdating ? "opacity-50" : "opacity-100"}`}
                   >
                     <View className="flex-row items-center">
                       <Ionicons
@@ -510,11 +479,10 @@ export default function AngleNodeDetailScreen() {
                       />
 
                       <Text
-                        className={`text-xs font-black ml-1 ${
-                          alarmMuted
+                        className={`text-xs font-black ml-1 ${alarmMuted
                             ? "text-[#F59E0B]"
                             : "text-[#1E2F5C]"
-                        }`}
+                          }`}
                       >
                         {alarmMuted ? "알람OFF" : "알람ON"}
                       </Text>
@@ -577,9 +545,8 @@ export default function AngleNodeDetailScreen() {
 
                   <View className="flex-row items-center">
                     <View
-                      className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                        isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
-                      }`}
+                      className={`w-2.5 h-2.5 rounded-full mr-2 ${isOffline ? "bg-[#6B7280]" : "bg-[#2563EB]"
+                        }`}
                     />
 
                     <Text className="text-[#1E263D] text-base font-black">

@@ -17,41 +17,11 @@ import { useRealtimeRoom } from "../../../hooks/useRealtime";
 
 const COLUMN_COUNT = 3;
 
-const formatLocation = (value: any) => {
-  if (!value) return "위치정보없음";
+const formatLocation = (node: any) => {
+  const title = node?.installedLocationTitle;
 
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : "위치정보없음";
-  }
-
-  if (typeof value === "object") {
-    const rawX = value.xPercent ?? value.x_percent ?? value.x;
-    const rawY = value.yPercent ?? value.y_percent ?? value.y;
-
-    if (
-      rawX === undefined ||
-      rawX === null ||
-      rawX === "" ||
-      rawY === undefined ||
-      rawY === null ||
-      rawY === ""
-    ) {
-      return "위치정보없음";
-    }
-
-    const x = Number(rawX);
-    const y = Number(rawY);
-
-    if (Number.isNaN(x) || Number.isNaN(y)) {
-      return "위치정보없음";
-    }
-
-    if (x === 0 && y === 0) {
-      return "위치정보없음";
-    }
-
-    return `X:${x.toFixed(1)}% Y:${y.toFixed(1)}%`;
+  if (typeof title === "string" && title.trim() !== "") {
+    return title;
   }
 
   return "위치정보없음";
@@ -364,7 +334,7 @@ export default function ScaffoldNodeScreen() {
                 : "border-[#DBEAFE]";
 
             const battery = item.batteryLevel ?? 0;
-            const location = formatLocation(item.installedLocation);
+            const location = formatLocation(item);
 
             return (
               <Pressable
@@ -373,13 +343,13 @@ export default function ScaffoldNodeScreen() {
                   router.push({
                     pathname: "/nodes/scaffoldnode/detail",
                     params: {
-                      nodeId: item._id,
-                      buildingId,
-                      companyId,
-                      siteName,
-                      doorNum: item.number,
+                      nodeId: String(item._id),
+                      buildingId: String(buildingId),
+                      companyId: typeof companyId === "string" ? companyId : "",
+                      siteName: String(siteName || ""),
+                      doorNum: String(item.number),
                       status: isOpen ? "open" : "closed",
-                      location,
+                      location: String(location),
                     },
                   } as any)
                 }

@@ -122,11 +122,17 @@ export default function VerticalNodeDetailScreen() {
         setNode(null);
         return;
       }
+      let imageKeys: any[] = [];
 
-      const imageKeys =
-        typeof buildingPlanImage === "string"
-          ? JSON.parse(buildingPlanImage)
-          : [];
+      try {
+        imageKeys =
+          typeof buildingPlanImage === "string"
+            ? JSON.parse(buildingPlanImage)
+            : [];
+      } catch (error) {
+        console.log("buildingPlanImage parse error:", buildingPlanImage);
+        imageKeys = [];
+      }
 
       const imageUrls = Array.isArray(imageKeys)
         ? imageKeys.map(getAssetUrl).filter(Boolean)
@@ -380,15 +386,11 @@ export default function VerticalNodeDetailScreen() {
     gateway?.gatewaySerialNumber ||
     gateway?.serial_number ||
     "-";
-
   const nodeLocation =
-    node?.installedLocation && String(node.installedLocation).trim() !== ""
-      ? node.installedLocation
-      : node?.position && String(node.position).trim() !== ""
-        ? node.position
-        : node?.floor && String(node.floor).trim() !== ""
-          ? node.floor
-          : "위치 정보 없음";
+    node?.installedLocationTitle &&
+      String(node.installedLocationTitle).trim() !== ""
+      ? node.installedLocationTitle
+      : "위치 정보 없음";
 
   const displayNodeNumber = node?.number ?? "-";
 
