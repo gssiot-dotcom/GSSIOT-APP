@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -199,7 +199,7 @@ export default function VerticalNodeScreen() {
     setStatusOpen(false);
   };
 
-  const fetchVerticalNodes = async (isRefresh = false) => {
+  const fetchVerticalNodes = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
@@ -263,7 +263,7 @@ export default function VerticalNodeScreen() {
         setLoading(false);
       }
     }
-  };
+  }, [buildingId, companyId]);
 
   const onRefresh = async () => {
     try {
@@ -275,8 +275,8 @@ export default function VerticalNodeScreen() {
   };
 
   useEffect(() => {
-    fetchVerticalNodes();
-  }, []);
+    void fetchVerticalNodes();
+  }, [fetchVerticalNodes]);
 
   useRealtimeRoom({
     buildingId: typeof buildingId === "string" ? buildingId : null,

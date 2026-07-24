@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -8,7 +8,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Switch,
   Text,
   View,
 } from "react-native";
@@ -112,7 +111,7 @@ export default function VerticalNodeDetailScreen() {
   const [zoomVisible, setZoomVisible] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(0);
 
-  const fetchNode = async (isRefresh = false) => {
+  const fetchNode = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
@@ -129,7 +128,7 @@ export default function VerticalNodeDetailScreen() {
           typeof buildingPlanImage === "string"
             ? JSON.parse(buildingPlanImage)
             : [];
-      } catch (error) {
+      } catch {
         console.log("buildingPlanImage parse error:", buildingPlanImage);
         imageKeys = [];
       }
@@ -237,7 +236,14 @@ export default function VerticalNodeDetailScreen() {
         setLoading(false);
       }
     }
-  };
+  }, [
+    buildingId,
+    buildingPlanImage,
+    companyId,
+    nodeId,
+    paramX,
+    paramY,
+  ]);
 
   const handleToggleAlarmMuted = async () => {
     if (!buildingId || !node || alarmUpdating) return;
@@ -296,8 +302,8 @@ export default function VerticalNodeDetailScreen() {
   };
 
   useEffect(() => {
-    fetchNode();
-  }, []);
+    void fetchNode();
+  }, [fetchNode]);
 
   useRealtimeRoom({
     buildingId: typeof buildingId === "string" ? buildingId : null,

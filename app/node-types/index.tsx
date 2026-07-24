@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 
 import { getBuildingsApi } from "../../api/buildings";
@@ -128,7 +128,7 @@ export default function NodetypesScreen() {
     return getFirstImageUrl(currentBuildingRealImage);
   }, [currentBuildingRealImage]);
 
-  const fetchUserBuilding = async () => {
+  const fetchUserBuilding = useCallback(async () => {
     try {
       const savedUser = await AsyncStorage.getItem("user");
 
@@ -189,11 +189,17 @@ export default function NodetypesScreen() {
     } catch (error) {
       console.log("user building error:", error);
     }
-  };
+  }, [
+    buildingId,
+    buildingPlanImage,
+    buildingRealImage,
+    companyLogo,
+    siteName,
+  ]);
 
   useEffect(() => {
-    fetchUserBuilding();
-  }, []);
+    void fetchUserBuilding();
+  }, [fetchUserBuilding]);
 
   return (
     <View className="flex-1 bg-[#F6F8FB]">

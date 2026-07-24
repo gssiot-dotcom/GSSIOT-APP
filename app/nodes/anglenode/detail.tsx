@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -108,7 +108,7 @@ export default function AngleNodeDetailScreen() {
   const [alarmMuted, setAlarmMuted] = useState(false);
   const [alarmUpdating, setAlarmUpdating] = useState(false);
 
-  const fetchDetail = async (isRefresh = false) => {
+  const fetchDetail = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
@@ -209,7 +209,7 @@ export default function AngleNodeDetailScreen() {
         setLoading(false);
       }
     }
-  };
+  }, [buildingId, companyId, nodeId, paramAxisX, paramAxisY]);
 
   const handleToggleAlarmMuted = async () => {
     if (!buildingId || !node || alarmUpdating) return;
@@ -259,8 +259,8 @@ export default function AngleNodeDetailScreen() {
   };
 
   useEffect(() => {
-    fetchDetail();
-  }, []);
+    void fetchDetail();
+  }, [fetchDetail]);
 
   useRealtimeRoom({
     buildingId: typeof buildingId === "string" ? buildingId : null,

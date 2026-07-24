@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -72,7 +72,7 @@ export default function BuildingsScreen() {
     return getAssetUrl(typeof companyLogo === "string" ? companyLogo : "");
   }, [companyLogo]);
 
-  const fetchBuildings = async (isRefresh = false) => {
+  const fetchBuildings = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
@@ -129,7 +129,7 @@ export default function BuildingsScreen() {
         setLoading(false);
       }
     }
-  };
+  }, [companyId]);
 
   const onRefresh = async () => {
     try {
@@ -141,8 +141,8 @@ export default function BuildingsScreen() {
   };
 
   useEffect(() => {
-    fetchBuildings();
-  }, []);
+    void fetchBuildings();
+  }, [fetchBuildings]);
 
   return (
     <View className="flex-1 bg-[#F4F6FA]">

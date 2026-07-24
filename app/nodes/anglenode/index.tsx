@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -135,7 +135,7 @@ export default function AngleNodeScreen() {
     setStatusOpen(false);
   };
 
-  const fetchAngleNodes = async (isRefresh = false) => {
+  const fetchAngleNodes = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
@@ -199,7 +199,7 @@ export default function AngleNodeScreen() {
         setLoading(false);
       }
     }
-  };
+  }, [buildingId, companyId]);
 
   const onRefresh = async () => {
     try {
@@ -211,8 +211,8 @@ export default function AngleNodeScreen() {
   };
 
   useEffect(() => {
-    fetchAngleNodes();
-  }, []);
+    void fetchAngleNodes();
+  }, [fetchAngleNodes]);
 
   useRealtimeRoom({
     buildingId: typeof buildingId === "string" ? buildingId : null,

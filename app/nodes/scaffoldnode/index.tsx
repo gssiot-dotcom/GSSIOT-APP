@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -35,7 +35,7 @@ export default function ScaffoldNodeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
 
-  const fetchNodes = async (isRefresh = false) => {
+  const fetchNodes = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
@@ -65,7 +65,7 @@ export default function ScaffoldNodeScreen() {
         setLoading(false);
       }
     }
-  };
+  }, [buildingId, companyId]);
 
   const onRefresh = async () => {
     try {
@@ -77,8 +77,8 @@ export default function ScaffoldNodeScreen() {
   };
 
   useEffect(() => {
-    fetchNodes();
-  }, []);
+    void fetchNodes();
+  }, [fetchNodes]);
 
   useRealtimeRoom({
     buildingId: typeof buildingId === "string" ? buildingId : null,

@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -267,7 +267,7 @@ export default function VerticalGraphScreen() {
         : 0;
 
   const [viewMode, setViewMode] = useState<ViewMode>("hour");
-  const [hours, setHours] = useState<1 | 6 | 12 | 24>(1);
+  const [hours, setHours] = useState<1 | 6 | 12 | 24>(12);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerViewDate, setPickerViewDate] = useState(new Date());
@@ -291,22 +291,16 @@ export default function VerticalGraphScreen() {
 
   const yRange = useMemo(() => getDynamicYRange(graphData), [graphData]);
 
-  const clampY = (value: number) => {
-    if (value > yRange.max) return yRange.max;
-    if (value < yRange.min) return yRange.min;
-    return value;
-  };
-
-  const getX = (timestamp: number) => {
+  const getX = useCallback((timestamp: number) => {
     const ratio = (timestamp - range.start) / (range.end - range.start);
     return PLOT_LEFT + ratio * PLOT_WIDTH;
-  };
+  }, [range]);
 
-  const getY = (value: number) => {
-    const safeValue = clampY(value);
+  const getY = useCallback((value: number) => {
+    const safeValue = Math.min(yRange.max, Math.max(yRange.min, value));
     const ratio = (yRange.max - safeValue) / (yRange.max - yRange.min);
     return PLOT_TOP + ratio * PLOT_HEIGHT;
-  };
+  }, [yRange]);
 
   const visibleGraphData = useMemo(
     () =>
@@ -321,7 +315,7 @@ export default function VerticalGraphScreen() {
       visibleGraphData
         .map((item) => `${getX(item.timestamp)},${getY(item.x)}`)
         .join(" "),
-    [visibleGraphData, range, yRange]
+    [getX, getY, visibleGraphData]
   );
 
   const yLinePoints = useMemo(
@@ -329,10 +323,10 @@ export default function VerticalGraphScreen() {
       visibleGraphData
         .map((item) => `${getX(item.timestamp)},${getY(item.y)}`)
         .join(" "),
-    [visibleGraphData, range, yRange]
+    [getX, getY, visibleGraphData]
   );
 
-  const fetchGraphData = async (isRefresh = false) => {
+  const fetchGraphData = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
@@ -347,24 +341,14 @@ export default function VerticalGraphScreen() {
 
       const { from, to } = getDateRange(viewMode, hours, selectedDate);
 
-      const result = await getNodeGraphicDataApi({
+      const historyList = await getNodeGraphicDataApi({
         nodeNumber: currentNodeNumber,
         nodeType: "gangform_node",
         from,
         to,
       });
 
-      console.log("vertical graph result:", result);
-
-      const histories =
-        result.data ||
-        result.histories ||
-        result.items ||
-        result.graphData ||
-        result.list ||
-        [];
-
-      const historyList = Array.isArray(histories) ? histories : [];
+      console.log("vertical graph result:", historyList);
 
       const parsed: GraphPoint[] = historyList
         .map((item: any) => {
@@ -393,7 +377,7 @@ export default function VerticalGraphScreen() {
         setLoading(false);
       }
     }
-  };
+  }, [currentNodeNumber, hours, selectedDate, viewMode]);
 
   const onRefresh = async () => {
     try {
@@ -405,8 +389,8 @@ export default function VerticalGraphScreen() {
   };
 
   useEffect(() => {
-    fetchGraphData();
-  }, [currentNodeNumber, viewMode, hours, selectedDate]);
+    void fetchGraphData();
+  }, [fetchGraphData]);
 
   useRealtimeRoom({
     buildingId: typeof buildingId === "string" ? buildingId : null,
@@ -462,7 +446,7 @@ export default function VerticalGraphScreen() {
     },
   });
 
-  const updateSelectedPoint = (locationX: number) => {
+  const updateSelectedPoint = useCallback((locationX: number) => {
     if (!visibleGraphData.length) return;
 
     const touchedTime =
@@ -483,7 +467,7 @@ export default function VerticalGraphScreen() {
       px: getX(nearest.timestamp),
       py: getY(nearest.x),
     });
-  };
+  }, [getX, getY, range, visibleGraphData]);
 
   const panResponder = useMemo(
     () =>
@@ -503,7 +487,7 @@ export default function VerticalGraphScreen() {
 
         onPanResponderTerminate: () => {},
       }),
-    [visibleGraphData, range, yRange]
+    [updateSelectedPoint]
   );
 
   return (
