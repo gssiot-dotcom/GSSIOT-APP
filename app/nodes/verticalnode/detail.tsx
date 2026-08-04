@@ -419,7 +419,7 @@ export default function VerticalNodeDetailScreen() {
       <View className="bg-white px-6 py-5 border-b border-gray-300 flex-row items-center justify-between">
         <View className="flex-1 mr-3">
           <Text className="text-xl font-black text-[#1E263D]">
-            폼 변형 감시 시스템
+            폼 변형 감지 시스템
           </Text>
 
           <Text className="text-xs text-gray-500 mt-1">
