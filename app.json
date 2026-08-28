@@ -2,7 +2,7 @@
   "expo": {
     "name": "GSS",
     "slug": "gss-app",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "scheme": "gssapp",
     "userInterfaceStyle": "automatic",
@@ -15,9 +15,10 @@
         "foregroundImage": "./assets/images/blue_logo.png",
         "backgroundColor": "#ffffff"
       },
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "package": "com.globalsmartsolutions.smartguard",
-      "versionCode": 4
+      "versionCode": 6
     },
     "web": {
       "output": "static"
